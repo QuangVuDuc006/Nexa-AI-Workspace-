@@ -1,13 +1,23 @@
-# Nexa AI
+<p align="center">
+  <img src="chatbot-dashboard\public\assets\Landing.png" alt="Nexa AI Logo" width="220">
+</p>
 
-> Secure Multi-Provider AI Workspace with Streaming, Vision, Document Processing, and BYOK Architecture.
+<h1 align="center">Nexa AI</h1>
 
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Python](https://img.shields.io/badge/Python-3.10+-green)
-![Flask](https://img.shields.io/badge/Flask-3.0-red)
-![React](https://img.shields.io/badge/React-18-blue)
+<p align="center">
+  A Secure Multi-Provider AI Workspace
+</p>
 
----
+<p align="center">
+  Connect and switch between leading AI models from one simple interface.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Flask-3.0-red">
+  <img src="https://img.shields.io/badge/React-18-blue">
+  <img src="https://img.shields.io/badge/Firebase-Auth-orange">
+  <img src="https://img.shields.io/badge/PostgreSQL-Supported-blue">
+</p>
 
 ## Overview
 
