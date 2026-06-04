@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Create a Nexa AI account for separated AI Workspace history.">
+    <meta name="theme-color" content="#020103">
+    <title>Register | Nexa AI</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/Hover.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/Hover.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script>
+        (function () {
+            var theme = localStorage.getItem("workspace_theme_preference") || "dark";
+            if (theme === "system") {
+                theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            }
+            document.documentElement.dataset.theme = theme;
+        }());
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}">
+</head>
+<body class="auth-page">
+    <div class="page-gradient" aria-hidden="true"></div>
+
+    <main class="auth-shell">
+        <div class="auth-topline">
+            <a class="nav-brand auth-brand" href="{{ url_for('landing') }}" aria-label="Nexa AI home">
+                <span class="auth-brand-text">Nexa AI</span>
+            </a>
+            <button class="auth-theme-toggle" type="button" aria-label="Toggle theme">
+                <span data-theme-icon>Moon</span>
+            </button>
+        </div>
+
+        <section class="auth-card reveal">
+            <div class="auth-copy">
+                <p class="section-kicker">AI Workspace</p>
+                <h1>Continue with Google.</h1>
+                <p>Firebase Authentication creates your workspace session and keeps your chats tied to your Google profile.</p>
+            </div>
+
+            {% if error %}
+                <p class="auth-error" role="alert">{{ error }}</p>
+            {% endif %}
+
+            <button class="button google-auth-button" type="button" data-firebase-google>
+                <span class="google-dot">G</span>
+                <span>Continue with Google</span>
+            </button>
+            {% if not firebase_auth_enabled %}
+                <p class="auth-hint" data-firebase-status>Firebase Google sign-in needs the VITE_FIREBASE values in .env.</p>
+            {% else %}
+                <p class="auth-hint" data-firebase-status hidden></p>
+            {% endif %}
+
+            <div class="auth-footer">
+                <a href="{{ url_for('landing') }}">Back to landing</a>
+                <a href="{{ url_for('chat_page') }}">Open workspace</a>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='landing.js') }}" defer></script>
+    <script type="module" src="{{ url_for('static', filename='firebase-auth.js') }}"></script>
+</body>
+</html>

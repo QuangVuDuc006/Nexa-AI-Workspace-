@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Nexa AI is an AI Workspace with attachments, account history, and streaming assistant responses.">
+    <meta name="theme-color" content="#fbf8fe">
+    <title>Nexa AI | AI Workspace</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/Hover.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/Hover.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+    <script>
+        (function () {
+            var theme = localStorage.getItem("workspace_theme_preference") || "dark";
+            if (theme === "system") {
+                theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            }
+            document.documentElement.dataset.theme = theme;
+        }());
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+</head>
+<body
+    data-user-id="{{ current_user.id if current_user else 'guest' }}"
+    data-user-name="{{ current_user.display_name if current_user else 'Guest' }}"
+    data-user-email="{{ current_user.email if current_user else '' }}"
+    data-user-photo="{{ current_user.photo_url if current_user and current_user.photo_url else '' }}"
+    data-auth-provider="{{ current_user.auth_provider if current_user else 'guest' }}"
+    data-authenticated="{{ 'true' if current_user else 'false' }}"
+    data-csrf-token="{{ csrf_token }}"
+    data-require-auth="true"
+>
+    <a class="skip-link" href="#chatMain">Skip to chat</a>
+
+    <main class="app-shell" data-app>
+        <aside class="sidebar" id="chatSidebar" aria-label="Workspace navigation">
+            <header class="sidebar-header">
+                <a class="brand-lockup sidebar-brand" href="{{ url_for('landing') }}" aria-label="Nexa AI home">
+                    <img class="brand-logo sidebar-logo sidebar-logo-expanded" src="{{ url_for('static', filename='assets/Normal.png') }}" alt="Nexa AI logo">
+                    <img class="brand-logo sidebar-logo sidebar-logo-collapsed" src="{{ url_for('static', filename='assets/Hover.png') }}" alt="" aria-hidden="true">
+                </a>
+                <button class="icon-button sidebar-close-button" type="button" aria-label="Close sidebar">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </header>
+
+            <button class="new-chat-button sidebar-new-chat" type="button" data-action="new-chat">
+                <span class="material-symbols-outlined">add</span>
+                <span class="sidebar-item-label">New chat</span>
+            </button>
+
+            <nav class="sidebar-nav" aria-label="Primary">
+                <a class="sidebar-nav-item active" href="{{ url_for('chat_page') }}" aria-current="page">
+                    <span class="material-symbols-outlined">chat</span>
+                    <span class="sidebar-item-label">Chat</span>
+                </a>
+                <button class="sidebar-nav-item" type="button" data-action="focus-search">
+                    <span class="material-symbols-outlined">manage_search</span>
+                    <span class="sidebar-item-label">Search Chats</span>
+                </button>
+                <button class="sidebar-nav-item" type="button" data-action="open-file-upload">
+                    <span class="material-symbols-outlined">upload_file</span>
+                    <span class="sidebar-item-label">Files / Uploads</span>
+                </button>
+                <button class="sidebar-nav-item" type="button" data-action="open-provider-settings">
+                    <span class="material-symbols-outlined">hub</span>
+                    <span class="sidebar-item-label">Provider Settings</span>
+                </button>
+                <button class="sidebar-nav-item" type="button" data-action="open-settings">
+                    <span class="material-symbols-outlined">settings</span>
+                    <span class="sidebar-item-label">Settings</span>
+                </button>
+            </nav>
+
+            <footer class="sidebar-bottom">
+                <a class="sidebar-bottom-link sidebar-logout" href="{{ url_for('logout') if current_user else url_for('login') }}" data-firebase-logout>
+                    <span class="material-symbols-outlined">{{ 'logout' if current_user else 'login' }}</span>
+                    <span class="sidebar-item-label">{{ 'Logout' if current_user else 'Login' }}</span>
+                </a>
+            </footer>
+        </aside>
+
+        <button class="sidebar-scrim" type="button" aria-label="Close sidebar"></button>
+
+        <section class="workspace" id="chatMain" aria-label="Main chat">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="icon-button mobile-menu-button" type="button" aria-label="Open sidebar" aria-controls="chatSidebar" aria-expanded="false">
+                        <span class="material-symbols-outlined">menu</span>
+                    </button>
+                    <div class="conversation-meta">
+                        <span class="meta-label user-display-name">{{ current_user.display_name if current_user else 'Guest workspace' }}</span>
+                        <h1 class="active-title">New chat</h1>
+                    </div>
+                </div>
+
+                <label class="topbar-search" aria-label="Search conversations">
+                    <span class="material-symbols-outlined">search</span>
+                    <input class="conversation-search-input" type="search" placeholder="Search conversations...">
+                </label>
+
+                <div class="topbar-actions">
+                    <button class="icon-button search-toggle-button" type="button" aria-label="Search conversations" aria-expanded="false">
+                        <span class="material-symbols-outlined">search</span>
+                    </button>
+                    <label class="active-model-switcher" title="Active AI provider and model">
+                        <span class="active-model-prefix">Using</span>
+                        <select class="active-provider-select" aria-label="Switch active AI model">
+                            <option value="">No Model Selected</option>
+                        </select>
+                    </label>
+                    <button class="icon-button rename-chat-button" type="button" aria-label="Rename current chat">
+                        <span class="material-symbols-outlined">edit</span>
+                    </button>
+                    <button class="icon-button theme-toggle-button" type="button" aria-label="Toggle theme">
+                        <span class="theme-toggle-fallback" aria-hidden="true">Moon</span>
+                    </button>
+                    <button class="icon-button settings-button" type="button" aria-label="Open settings">
+                        <span class="material-symbols-outlined">settings</span>
+                    </button>
+                    <span class="profile-chip" aria-hidden="true" title="{{ current_user.email if current_user else 'Guest' }}">
+                        {% if current_user and current_user.photo_url %}
+                            <img src="{{ current_user.photo_url }}" alt="">
+                        {% else %}
+                            {{ (current_user.display_name[:2] if current_user else 'GU')|upper }}
+                        {% endif %}
+                    </span>
+                </div>
+            </header>
+
+            <div class="messages" aria-live="polite" aria-busy="false">
+                <div class="chat-thread"></div>
+            </div>
+
+            <form class="composer" autocomplete="off">
+                <div class="attachment-tray" hidden></div>
+                <div class="composer-row">
+                    <button class="icon-button attach-button" type="button" aria-label="Attach text file">
+                        <span class="material-symbols-outlined">attach_file</span>
+                    </button>
+                    <button class="icon-button image-button" type="button" aria-label="Attach image">
+                        <span class="material-symbols-outlined">add_photo_alternate</span>
+                    </button>
+                    <textarea class="message-input" rows="1" placeholder="Start typing..." aria-label="Message"></textarea>
+                    <button class="stop-button" type="button" hidden>
+                        <span class="material-symbols-outlined">stop</span>
+                        <span>Stop</span>
+                    </button>
+                    <button class="send-button" type="submit" aria-label="Send message" disabled>
+                        <span class="material-symbols-outlined">send</span>
+                    </button>
+                </div>
+                <p class="composer-note">Nexa AI can make mistakes. Consider verifying important information.</p>
+                <input class="file-input" type="file" multiple hidden accept=".txt,.md,.pdf,.docx,.jpg,.jpeg,.png,.webp,.gif,text/plain,text/markdown,image/jpeg,image/png,image/webp,image/gif">
+                <input class="image-input" type="file" multiple hidden accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
+            </form>
+        </section>
+
+        <aside class="history-panel" aria-label="Conversation history">
+            <header class="history-header">
+                <div>
+                    <h2>History</h2>
+                    <span>{{ 'Your conversations' if current_user else 'Guest conversations' }}</span>
+                </div>
+                <button class="text-button clear-all-button" type="button">Clear</button>
+            </header>
+
+            <nav class="conversation-list" aria-label="Conversations"></nav>
+        </aside>
+    </main>
+
+    <section class="dialog-layer settings-dialog" aria-hidden="true">
+        <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+            <header class="dialog-header">
+                <div>
+                    <span class="meta-label">Workspace</span>
+                    <h2 id="settingsTitle">Settings</h2>
+                </div>
+                <button class="icon-button dialog-close-button" type="button" aria-label="Close settings">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </header>
+
+            <div class="settings-grid">
+                <section class="settings-section" aria-labelledby="themeSettingsTitle">
+                    <h3 id="themeSettingsTitle">Theme</h3>
+                    <div class="segmented-control" role="group" aria-label="Theme preference">
+                        <button type="button" data-theme-option="system">System</button>
+                        <button type="button" data-theme-option="light">Light</button>
+                        <button type="button" data-theme-option="dark">Dark</button>
+                    </div>
+                </section>
+
+                <section class="settings-section provider-settings-section" data-settings-section="provider" aria-labelledby="providerSettingsTitle">
+                    <div class="settings-section-heading">
+                        <div>
+                            <h3 id="providerSettingsTitle">Provider Settings</h3>
+                            <p class="settings-help">Paste an API key, auto-detect models, and switch the model used by chat.</p>
+                        </div>
+                        <span class="connection-status" role="status">Not connected</span>
+                    </div>
+
+                    <form class="provider-form">
+                        <input class="provider-connection-id" type="hidden">
+                        <div class="provider-field-grid">
+                            <label class="form-field provider-api-key-field">
+                                <span>API key</span>
+                                <input class="api-key-input" type="password" autocomplete="new-password" placeholder="Paste API key">
+                            </label>
+                        </div>
+                        <label class="form-field">
+                            <span>Base URL <small>Optional; use for custom or ambiguous APIs</small></span>
+                            <input class="api-base-url-input" type="url" placeholder="https://api.example.com/v1">
+                        </label>
+                        <div class="provider-detect-row">
+                            <button class="secondary-button detect-models-button" type="button">
+                                <span class="material-symbols-outlined">travel_explore</span>
+                                <span>Auto Detect Models</span>
+                            </button>
+                            <span class="detect-models-status" role="status"></span>
+                        </div>
+                        <label class="form-field">
+                            <span>Detected models</span>
+                            <select class="detected-model-select" aria-label="Detected model">
+                                <option value="">Detect models first</option>
+                            </select>
+                        </label>
+                        <label class="form-field manual-model-field">
+                            <span>Manual model <small>For custom or empty model lists</small></span>
+                            <input class="manual-model-input" type="text" placeholder="Enter model ID">
+                        </label>
+                        <p class="settings-help provider-storage-note">Keys are encrypted server-side and are never returned to the browser.</p>
+                        <div class="dialog-actions provider-actions">
+                            <button class="secondary-button test-connection-button" type="button">Test Connection</button>
+                            <button class="primary-button" type="submit">Save Provider</button>
+                        </div>
+                    </form>
+
+                    <div class="saved-provider-area">
+                        <div class="saved-provider-heading">
+                            <strong>Saved providers</strong>
+                            <span class="active-provider-summary">No model selected</span>
+                        </div>
+                        <div class="saved-provider-list"></div>
+                    </div>
+                </section>
+
+                <section class="settings-section danger-zone" aria-labelledby="dataSettingsTitle">
+                    <h3 id="dataSettingsTitle">Account data</h3>
+                    <button class="danger-button clear-history-button" type="button">
+                        <span class="material-symbols-outlined">delete</span>
+                        <span>Clear chat history</span>
+                    </button>
+                </section>
+            </div>
+        </div>
+    </section>
+
+    <section class="dialog-layer rename-dialog" aria-hidden="true">
+        <div class="dialog-panel compact-dialog" role="dialog" aria-modal="true" aria-labelledby="renameTitle">
+            <header class="dialog-header">
+                <div>
+                    <span class="meta-label">Conversation</span>
+                    <h2 id="renameTitle">Rename chat</h2>
+                </div>
+                <button class="icon-button rename-close-button" type="button" aria-label="Close rename dialog">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </header>
+            <form class="rename-form">
+                <label class="form-field">
+                    <span>Name</span>
+                    <input class="rename-input" type="text" maxlength="80" required>
+                </label>
+                <div class="dialog-actions">
+                    <button class="secondary-button rename-cancel-button" type="button">Cancel</button>
+                    <button class="primary-button" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section class="dialog-layer confirm-dialog" aria-hidden="true">
+        <div class="dialog-panel compact-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+            <header class="dialog-header">
+                <div>
+                    <span class="meta-label">Confirm</span>
+                    <h2 id="confirmTitle">Clear history?</h2>
+                </div>
+                <button class="icon-button confirm-close-button" type="button" aria-label="Close confirmation">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </header>
+            <p class="confirm-message">This removes saved conversations for this account.</p>
+            <div class="dialog-actions">
+                <button class="secondary-button confirm-cancel-button" type="button">Cancel</button>
+                <button class="danger-button confirm-accept-button" type="button">Clear history</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="dialog-layer image-preview-dialog" aria-hidden="true">
+        <div class="dialog-panel image-preview-panel" role="dialog" aria-modal="true" aria-labelledby="imagePreviewTitle">
+            <header class="dialog-header">
+                <div>
+                    <span class="meta-label">Attachment</span>
+                    <h2 id="imagePreviewTitle" class="image-preview-title">Image preview</h2>
+                </div>
+                <button class="icon-button image-preview-close-button" type="button" aria-label="Close image preview">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </header>
+            <img class="image-preview-large" alt="">
+            <p class="image-preview-meta"></p>
+        </div>
+    </section>
+
+    <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="{{ url_for('static', filename='frontend/api/client.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='frontend/uploads/files.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='chat.js') }}" defer></script>
+    <script type="module" src="{{ url_for('static', filename='firebase-auth.js') }}"></script>
+</body>
+</html>

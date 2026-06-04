@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nexa AI Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-on-surface": "#f3f0f5",
+                        "error-container": "#ffdad6",
+                        "on-background": "#1b1b1f",
+                        "tertiary-fixed": "#e1e3e4",
+                        "surface-container-low": "#f6f2f8",
+                        "on-tertiary-fixed-variant": "#454748",
+                        "on-tertiary-fixed": "#191c1d",
+                        "on-primary-fixed": "#351000",
+                        "surface-container": "#f0edf2",
+                        "secondary-fixed-dim": "#c7c5d0",
+                        "secondary-container": "#e1dee9",
+                        "primary": "#a04100",
+                        "outline": "#8e7164",
+                        "on-secondary-container": "#62626b",
+                        "tertiary-fixed-dim": "#c5c7c8",
+                        "primary-fixed": "#ffdbcc",
+                        "on-error-container": "#93000a",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#5a4136",
+                        "on-tertiary-container": "#2f3132",
+                        "on-secondary-fixed-variant": "#46464f",
+                        "surface": "#fbf8fe",
+                        "secondary": "#5e5d67",
+                        "outline-variant": "#e2bfb0",
+                        "surface-container-high": "#eae7ed",
+                        "primary-fixed-dim": "#ffb693",
+                        "background": "#fbf8fe",
+                        "secondary-fixed": "#e4e1ec",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#303034",
+                        "on-error": "#ffffff",
+                        "on-primary-container": "#572000",
+                        "tertiary-container": "#97999a",
+                        "surface-variant": "#e4e1e7",
+                        "error": "#ba1a1a",
+                        "surface-bright": "#fbf8fe",
+                        "on-surface": "#1b1b1f",
+                        "primary-container": "#ff6b00",
+                        "tertiary": "#5c5f60",
+                        "surface-container-highest": "#e4e1e7",
+                        "on-secondary-fixed": "#1b1b23",
+                        "surface-tint": "#a04100",
+                        "surface-dim": "#dcd9de",
+                        "on-primary-fixed-variant": "#7a3000",
+                        "inverse-primary": "#ffb693"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "lg": "32px",
+                        "xs": "4px",
+                        "container-padding": "24px",
+                        "md": "24px",
+                        "gutter": "16px",
+                        "sm": "12px",
+                        "xl": "48px"
+                    },
+                    "fontFamily": {
+                        "mono-code": ["JetBrains Mono", "monospace"],
+                        "label-sm": ["Geist", "sans-serif"],
+                        "headline-lg-mobile": ["Geist", "sans-serif"],
+                        "body-lg": ["Geist", "sans-serif"],
+                        "headline-lg": ["Geist", "sans-serif"],
+                        "body-md": ["Geist", "sans-serif"],
+                        "headline-md": ["Geist", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "mono-code": ["14px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "1", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "1.4", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .bg-sidebar-dark { background-color: #24242c; }
+        .gradient-text-orange {
+            background: linear-gradient(135deg, #ff6b00, #a04100);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-bg-orange {
+            background: linear-gradient(135deg, #ff6b00, #a04100);
+        }
+    </style>
+</head>
+<body class="bg-surface-container-low h-full font-body-md text-on-surface p-md flex items-center justify-center overflow-hidden">
+<!-- Main App Container -->
+<div class="w-full max-w-[1400px] h-full max-h-[900px] bg-surface-container-lowest rounded-[24px] shadow-lg flex overflow-hidden fade-in border border-surface-variant">
+<!-- Sidebar -->
+<aside class="w-[280px] bg-inverse-surface flex flex-col h-full py-lg hidden md:flex shrink-0">
+<!-- Brand Logo -->
+<div class="px-md mb-8 flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg gradient-bg-orange flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-on-primary text-[20px]">smart_toy</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-black text-primary-fixed">Nexa AI</h1>
+<p class="font-label-sm text-label-sm text-primary-fixed-dim opacity-80">AI Intelligence</p>
+</div>
+</div>
+<!-- Navigation -->
+<nav class="flex-1 overflow-y-auto px-2 space-y-1">
+<a class="bg-primary/10 text-primary border-l-4 border-primary px-4 py-3 flex items-center gap-3 rounded-r-lg font-body-md text-body-md font-medium transition-colors" href="#">
+<span class="material-symbols-outlined">chat</span>
+<span>Chat</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant/20 hover:text-primary-fixed px-4 py-3 flex items-center gap-3 border-l-4 border-transparent rounded-r-lg transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">dashboard_customize</span>
+<span>Templates</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant/20 hover:text-primary-fixed px-4 py-3 flex items-center gap-3 border-l-4 border-transparent rounded-r-lg transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">folder</span>
+<span>Projects</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant/20 hover:text-primary-fixed px-4 py-3 flex items-center gap-3 border-l-4 border-transparent rounded-r-lg transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">query_stats</span>
+<span>Stats</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant/20 hover:text-primary-fixed px-4 py-3 flex items-center gap-3 border-l-4 border-transparent rounded-r-lg transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant/20 hover:text-primary-fixed px-4 py-3 flex items-center gap-3 border-l-4 border-transparent rounded-r-lg transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>FAQ</span>
+</a>
+</nav>
+<!-- Bottom Section -->
+<div class="px-md mt-auto space-y-4">
+<!-- Pro Card -->
+<div class="rounded-xl gradient-bg-orange p-4 text-on-primary shadow-md relative overflow-hidden">
+<div class="absolute top-[-20px] right-[-20px] w-16 h-16 bg-white/20 rounded-full blur-xl"></div>
+<h3 class="font-headline-md text-[16px] font-bold mb-1">Pro Plan Active</h3>
+<p class="font-body-md text-[12px] opacity-90 mb-3">Unlock all AI models and advanced features.</p>
+<button class="w-full bg-surface-container-lowest text-primary font-medium py-2 rounded-lg text-sm hover:bg-surface transition-colors">Manage Plan</button>
+</div>
+<!-- Logout -->
+<button class="w-full text-on-surface-variant hover:text-primary-fixed flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-body-md text-body-md justify-start hover:bg-surface-variant/10">
+<span class="material-symbols-outlined">logout</span>
+<span>Logout</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0 bg-surface-container-lowest relative">
+<!-- Top Bar -->
+<header class="flex justify-between items-center w-full px-md h-16 border-b border-surface-variant shrink-0 z-10 bg-surface/80 backdrop-blur-md">
+<div class="flex items-center gap-3">
+<!-- Mobile Menu Button (Hidden on md) -->
+<button class="md:hidden text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h2 class="font-headline-md text-headline-md font-bold text-primary">AI Chat Helper</h2>
+</div>
+<!-- Search -->
+<div class="hidden md:flex flex-1 max-w-md mx-8 relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+<input class="w-full bg-surface-container-high border-none rounded-full py-2 pl-10 pr-4 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:ring-2 focus:ring-primary/50 transition-shadow" placeholder="Search conversations..." type="text"/>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm ml-2 cursor-pointer border border-primary/30">
+                        JS
+                    </div>
+</div>
+</header>
+<!-- Chat Canvas -->
+<div class="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col gap-6 relative">
+<!-- Assistant Message (Code Example) -->
+<div class="flex gap-4 max-w-4xl mx-auto w-full">
+<div class="w-8 h-8 rounded-lg gradient-bg-orange flex items-center justify-center shadow-sm shrink-0">
+<span class="material-symbols-outlined text-on-primary text-[18px]">smart_toy</span>
+</div>
+<div class="flex-1 space-y-4">
+<div class="text-on-surface font-body-lg text-body-lg">
+<p>Here is a complete setup for a modern welcome form using HTML, CSS, and some JavaScript for validation. I've structured it to be responsive and accessible.</p>
+</div>
+<!-- Code Block Component -->
+<div class="bg-inverse-surface rounded-xl border border-surface-variant overflow-hidden shadow-sm">
+<div class="flex items-center justify-between px-4 py-2 bg-inverse-surface border-b border-surface-variant/20">
+<div class="flex gap-4">
+<button class="font-label-sm text-label-sm text-primary-fixed font-medium border-b-2 border-primary pb-1">HTML</button>
+<button class="font-label-sm text-label-sm text-on-surface-variant hover:text-tertiary-fixed pb-1 transition-colors">CSS</button>
+<button class="font-label-sm text-label-sm text-on-surface-variant hover:text-tertiary-fixed pb-1 transition-colors">JS</button>
+</div>
+<button class="text-on-surface-variant hover:text-tertiary-fixed flex items-center gap-1 font-label-sm text-label-sm transition-colors">
+<span class="material-symbols-outlined text-[16px]">content_copy</span> Copy
+                                </button>
+</div>
+<div class="p-4 overflow-x-auto text-tertiary-fixed font-mono-code text-mono-code leading-relaxed">
+<pre><code><span class="text-surface-variant/50 mr-4 select-none">1</span><span class="text-primary-fixed">&lt;div</span> <span class="text-tertiary-fixed-dim">class=</span><span class="text-[#a8c7fa]">"welcome-container"</span><span class="text-primary-fixed">&gt;</span>
+<span class="text-surface-variant/50 mr-4 select-none">2</span>  <span class="text-primary-fixed">&lt;h1&gt;</span>Welcome to Nexa AI<span class="text-primary-fixed">&lt;/h1&gt;</span>
+<span class="text-surface-variant/50 mr-4 select-none">3</span>  <span class="text-primary-fixed">&lt;form</span> <span class="text-tertiary-fixed-dim">id=</span><span class="text-[#a8c7fa]">"onboarding-form"</span><span class="text-primary-fixed">&gt;</span>
+<span class="text-surface-variant/50 mr-4 select-none">4</span>    <span class="text-primary-fixed">&lt;input</span> <span class="text-tertiary-fixed-dim">type=</span><span class="text-[#a8c7fa]">"email"</span> <span class="text-tertiary-fixed-dim">required</span> <span class="text-tertiary-fixed-dim">placeholder=</span><span class="text-[#a8c7fa]">"Enter your email"</span> <span class="text-primary-fixed">/&gt;</span>
+<span class="text-surface-variant/50 mr-4 select-none">5</span>    <span class="text-primary-fixed">&lt;button</span> <span class="text-tertiary-fixed-dim">type=</span><span class="text-[#a8c7fa]">"submit"</span><span class="text-primary-fixed">&gt;</span>Get Started<span class="text-primary-fixed">&lt;/button&gt;</span>
+<span class="text-surface-variant/50 mr-4 select-none">6</span>  <span class="text-primary-fixed">&lt;/form&gt;</span>
+<span class="text-surface-variant/50 mr-4 select-none">7</span><span class="text-primary-fixed">&lt;/div&gt;</span></code></pre>
+</div>
+</div>
+<!-- Integration Card -->
+<div class="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-start gap-3 w-fit">
+<span class="material-symbols-outlined text-primary mt-0.5">check_circle</span>
+<div>
+<p class="font-body-md text-body-md text-on-surface font-medium">Project Created</p>
+<p class="font-body-md text-sm text-on-surface-variant mt-1">I have created a project in your Codepen account with this boilerplate.</p>
+</div>
+<button class="ml-4 font-label-sm text-label-sm text-primary hover:underline mt-0.5">View</button>
+</div>
+<!-- Message Actions -->
+<div class="flex items-center gap-2 mt-2">
+<button class="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-variant rounded-md transition-colors" title="Like">
+<span class="material-symbols-outlined text-[18px]">thumb_up</span>
+</button>
+<button class="p-1.5 text-on-surface-variant hover:text-error hover:bg-surface-variant rounded-md transition-colors" title="Dislike">
+<span class="material-symbols-outlined text-[18px]">thumb_down</span>
+</button>
+<button class="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-variant rounded-md transition-colors ml-2 flex items-center gap-1 font-label-sm" title="Regenerate">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+<span>Regenerate</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Spacer for composer -->
+<div class="h-24"></div>
+</div>
+<!-- Composer Area -->
+<div class="absolute bottom-0 left-0 w-full p-4 md:px-8 md:pb-6 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest to-transparent pt-10">
+<div class="max-w-4xl mx-auto">
+<div class="bg-surface border border-outline-variant rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.05)] flex items-end gap-2 p-2 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors shrink-0 rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<textarea class="flex-1 bg-transparent border-none focus:ring-0 resize-none font-body-md text-body-md py-3 max-h-32 min-h-[44px]" placeholder="Start typing..." rows="1" style="field-sizing: content;"></textarea>
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors shrink-0 rounded-full hover:bg-surface-variant mb-1">
+<span class="material-symbols-outlined">mic</span>
+</button>
+<button class="w-10 h-10 gradient-bg-orange text-on-primary rounded-full flex items-center justify-center shrink-0 shadow-md hover:opacity-90 transition-opacity mb-0.5">
+<span class="material-symbols-outlined text-[20px]">send</span>
+</button>
+</div>
+<p class="text-center font-label-sm text-[11px] text-on-surface-variant mt-3 opacity-70">
+                        Nexa AI can make mistakes. Consider verifying important information.
+                    </p>
+</div>
+</div>
+</main>
+<!-- Right Panel (History) -->
+<aside class="w-[260px] bg-surface-container-low border-l border-surface-variant hidden lg:flex flex-col shrink-0">
+<div class="p-4 border-b border-surface-variant flex items-center justify-between">
+<h3 class="font-headline-md text-[16px] font-semibold text-on-surface">History</h3>
+<span class="bg-primary/10 text-primary font-label-sm text-[11px] px-2 py-0.5 rounded-full border border-primary/20">6/50</span>
+</div>
+<div class="flex-1 overflow-y-auto p-2 space-y-1">
+<!-- History Item 1 (Active) -->
+<div class="group p-3 rounded-xl bg-surface hover:bg-surface-container-high border border-outline-variant cursor-pointer transition-colors relative">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-[18px] mt-0.5 shrink-0">check_box</span>
+<div class="min-w-0">
+<p class="font-body-md text-sm font-medium text-on-surface truncate">Create welcome form</p>
+<p class="font-label-sm text-xs text-on-surface-variant truncate mt-1">HTML/CSS/JS boilerplate</p>
+</div>
+</div>
+</div>
+<!-- History Item 2 -->
+<div class="group p-3 rounded-xl hover:bg-surface-container-high border border-transparent cursor-pointer transition-colors relative">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px] mt-0.5 shrink-0 group-hover:text-primary">check_box_outline_blank</span>
+<div class="min-w-0">
+<p class="font-body-md text-sm font-medium text-on-surface truncate">API Instructions</p>
+<p class="font-label-sm text-xs text-on-surface-variant truncate mt-1">Setup REST endpoints</p>
+</div>
+</div>
+</div>
+<!-- History Item 3 -->
+<div class="group p-3 rounded-xl hover:bg-surface-container-high border border-transparent cursor-pointer transition-colors relative">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px] mt-0.5 shrink-0 group-hover:text-primary">check_box_outline_blank</span>
+<div class="min-w-0">
+<p class="font-body-md text-sm font-medium text-on-surface truncate">Career progression</p>
+<p class="font-label-sm text-xs text-on-surface-variant truncate mt-1">Senior dev roadmap</p>
+</div>
+</div>
+</div>
+<!-- History Item 4 -->
+<div class="group p-3 rounded-xl hover:bg-surface-container-high border border-transparent cursor-pointer transition-colors relative">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px] mt-0.5 shrink-0 group-hover:text-primary">check_box_outline_blank</span>
+<div class="min-w-0">
+<p class="font-body-md text-sm font-medium text-on-surface truncate">Debug memory leak</p>
+<p class="font-label-sm text-xs text-on-surface-variant truncate mt-1">React useEffect cleanup</p>
+</div>
+</div>
+</div>
+<!-- History Item 5 -->
+<div class="group p-3 rounded-xl hover:bg-surface-container-high border border-transparent cursor-pointer transition-colors relative">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px] mt-0.5 shrink-0 group-hover:text-primary">check_box_outline_blank</span>
+<div class="min-w-0">
+<p class="font-body-md text-sm font-medium text-on-surface truncate">Database schema</p>
+<p class="font-label-sm text-xs text-on-surface-variant truncate mt-1">PostgreSQL user roles</p>
+</div>
+</div>
+</div>
+<!-- History Item 6 -->
+<div class="group p-3 rounded-xl hover:bg-surface-container-high border border-transparent cursor-pointer transition-colors relative">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px] mt-0.5 shrink-0 group-hover:text-primary">check_box_outline_blank</span>
+<div class="min-w-0">
+<p class="font-body-md text-sm font-medium text-on-surface truncate">Docker config</p>
+<p class="font-label-sm text-xs text-on-surface-variant truncate mt-1">Compose file for Node</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-surface-variant bg-surface-container-lowest/50">
+<button class="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-error hover:bg-error-container/50 transition-colors font-body-md text-sm">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+                    Clear history
+                </button>
+</div>
+</aside>
+</div>
+</body></html>

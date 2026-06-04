@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.env
+.env.*
+vite-dev.log
+vite-dev.err.log
+server-*.out
+server-*.err
+
+# Firebase Admin SDK
+*firebase-adminsdk*.json
+
+# Google service account
+*serviceAccount*.json
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Local database/uploads
+instance/

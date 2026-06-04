@@ -1,0 +1,17 @@
+.env
+.env.*
+__pycache__/
+*.py[cod]
+
+instance/
+server-*.log
+
+# Firebase Admin SDK
+*firebase-adminsdk*.json
+
+# Service Account Keys
+*serviceAccount*.json
+
+# Secrets
+*.pem
+*.key
