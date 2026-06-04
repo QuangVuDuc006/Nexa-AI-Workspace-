@@ -10,7 +10,7 @@ const providerIcons = [Bot, BrainCircuit, Orbit, Network];
 export function TrustedBy() {
   return (
     <motion.div
-      className="mx-auto mt-28 grid max-w-4xl justify-items-center gap-7"
+      className="mx-auto mt-16 grid max-w-4xl justify-items-center gap-6 md:mt-20"
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
@@ -23,7 +23,7 @@ export function TrustedBy() {
           Connect your API key, detect supported models, and chat from one simple interface.
         </p>
       </motion.div>
-      <motion.div variants={staggerContainer} className="grid w-full grid-cols-2 gap-5 md:grid-cols-4">
+      <motion.div variants={staggerContainer} className="grid w-full grid-cols-2 gap-4 md:grid-cols-4">
         {trustedLogos.map((logo, index) => {
           const Icon = providerIcons[index];
 

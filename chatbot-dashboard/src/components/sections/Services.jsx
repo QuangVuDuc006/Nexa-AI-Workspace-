@@ -7,6 +7,7 @@ import { GlowCard } from "../ui/GlowCard";
 import { Reveal } from "../ui/Reveal";
 import { SectionHeader } from "../ui/SectionHeader";
 import { SectionLabel } from "../ui/SectionLabel";
+import { ScrollWordReveal } from "../ui/ScrollWordReveal";
 
 function TagGroup({ tags }) {
   return (
@@ -152,17 +153,18 @@ function ServiceVisual({ type }) {
 
 export function Services() {
   return (
-    <section id="services" className="px-6 py-24 md:px-16 md:py-32">
+    <section id="services" className="landing-section px-6 md:px-16">
       <SectionHeader
         label="Features"
         title="Why this chatbot is different"
         description="Connect the AI APIs you already use, switch models clearly, and keep one simple chat interface."
+        typewriter
       />
-      <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.12 }} className="grid gap-24">
+      <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.12 }} className="landing-content-stack grid">
         {services.map((service, index) => (
           <div
             key={service.title}
-            className={`grid items-center gap-10 lg:grid-cols-2 ${service.reverse ? "lg:[&>*:first-child]:order-2" : ""}`}
+            className={`grid items-center gap-8 lg:grid-cols-2 lg:gap-10 ${service.reverse ? "lg:[&>*:first-child]:order-2" : ""}`}
           >
             <Reveal variants={index % 2 === 0 ? leftRevealVariants : rightRevealVariants}>
               <ServiceVisual type={service.visual} />
@@ -173,7 +175,10 @@ export function Services() {
                 <h3 className="mt-5 text-3xl font-semibold leading-tight tracking-[-0.045em] text-white md:text-4xl">
                   {service.title}
                 </h3>
-                <p className="mt-4 text-base leading-7 text-mist-200">{service.description}</p>
+                <ScrollWordReveal
+                  className="mt-4 text-base leading-7 text-mist-200"
+                  text={service.description}
+                />
                 <TagGroup tags={service.tags} />
               </div>
             </Reveal>

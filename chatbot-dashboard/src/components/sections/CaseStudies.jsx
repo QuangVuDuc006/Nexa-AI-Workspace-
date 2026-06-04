@@ -57,11 +57,12 @@ export function CaseStudies() {
   };
 
   return (
-    <section id="case-studies" className="px-6 py-24 md:px-16 md:py-32">
+    <section id="case-studies" className="landing-section px-6 md:px-16">
       <SectionHeader
         label="Use cases"
         title="Choose a model based on the task"
         description="Use one provider for speed, another for reasoning, or a custom endpoint for testing without changing the way you chat."
+        typewriter
       />
       <motion.div
         className="cursor-grab overflow-hidden active:cursor-grabbing"
@@ -78,7 +79,7 @@ export function CaseStudies() {
             animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
             exit={{ opacity: 0, x: direction * -60, filter: "blur(8px)" }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            className="grid select-none items-center gap-12 lg:grid-cols-[0.92fr_1fr]"
+            className="grid select-none items-center gap-8 lg:grid-cols-[0.92fr_1fr] lg:gap-10"
           >
             <Reveal variants={leftRevealVariants}>
               <div className="overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.035] p-[1px] shadow-card">
@@ -92,7 +93,7 @@ export function CaseStudies() {
             </Reveal>
             <Reveal variants={rightRevealVariants}>
               <div className="max-w-lg">
-                <div className="mb-7 flex items-center gap-2 text-4xl font-black tracking-[-0.08em] text-white/80">
+                <div className="mb-6 flex items-center gap-2 text-4xl font-black tracking-[-0.08em] text-white/80">
                   <span>{activeCase.logo.slice(0, 2)}</span>
                   <span className="h-5 w-16 rounded-full border-[6px] border-white/70" />
                   <span>{activeCase.logo.slice(2)}</span>
@@ -101,7 +102,7 @@ export function CaseStudies() {
                   "{activeCase.quote}"
                 </h3>
                 <p className="mt-5 text-base leading-7 text-mist-200">{activeCase.body}</p>
-                <div className="mt-8">
+                <div className="mt-6">
                   <p className="mb-3 text-base font-semibold text-white">What stays simple:</p>
                   <ul className="grid gap-2 text-base font-semibold text-mist-100">
                     {activeCase.impact.map((item) => (
@@ -117,7 +118,7 @@ export function CaseStudies() {
           </motion.article>
         </AnimatePresence>
       </motion.div>
-      <div className="mt-10 flex items-center justify-center gap-4 text-sm font-semibold uppercase tracking-[0.04em] text-mist-200">
+      <div className="mt-8 flex items-center justify-center gap-4 text-sm font-semibold uppercase tracking-[0.04em] text-mist-200">
         <button
           className="grid h-11 w-11 place-items-center rounded-[8px] border border-white/[0.12] bg-white/[0.035] text-white transition duration-300 hover:border-violetx-400/50 hover:bg-violetx-800/40"
           type="button"
@@ -142,7 +143,7 @@ export function CaseStudies() {
           <ArrowRight size={17} />
         </button>
       </div>
-      <div className="mt-5 flex items-center justify-center gap-2" aria-label="Case study pagination">
+      <div className="mt-4 flex items-center justify-center gap-2" aria-label="Case study pagination">
         {caseStudies.map((item, index) => (
           <button
             key={item.quote}

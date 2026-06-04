@@ -8,11 +8,12 @@ import { SectionHeader } from "../ui/SectionHeader";
 
 export function Testimonials() {
   return (
-    <section id="testimonials" className="px-6 py-24 md:px-16 md:py-32">
+    <section id="testimonials" className="landing-section px-6 md:px-16">
       <SectionHeader
         label="Testimonials"
         title="Built for people who use more than one AI API"
         description="Developers, students, writers, and model testers use Nexa AI to keep provider switching straightforward."
+        typewriter
       />
       <motion.div
         className="grid gap-4 lg:grid-cols-2"
@@ -29,7 +30,7 @@ export function Testimonials() {
               ))}
             </div>
             <p className="text-lg font-semibold leading-7 tracking-[-0.025em] text-mist-100">"{item.quote}"</p>
-            <div className="mt-7 flex items-center gap-4">
+            <div className="mt-6 flex items-center gap-4">
               <img className="h-12 w-12 rounded-full object-cover" src={item.avatar} alt={item.name} />
               <div>
                 <p className="font-semibold text-white">{item.name}</p>

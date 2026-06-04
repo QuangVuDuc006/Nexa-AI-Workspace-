@@ -6,7 +6,7 @@ export function PricingToggle({ value, onChange }) {
 
   return (
     <div
-      className="mx-auto mb-8 flex w-max items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.035] p-1.5 text-sm font-semibold text-mist-200"
+      className="mx-auto mb-6 flex w-max items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.035] p-1.5 text-sm font-semibold text-mist-200"
       role="radiogroup"
       aria-label="Billing cycle"
     >

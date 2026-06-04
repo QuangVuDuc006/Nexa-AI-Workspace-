@@ -7,11 +7,12 @@ import { SectionHeader } from "../ui/SectionHeader";
 
 export function Benefits() {
   return (
-    <section id="benefits" className="px-6 py-24 md:px-16 md:py-32">
+    <section id="benefits" className="landing-section px-6 md:px-16">
       <SectionHeader
         label="Benefits"
         title="Many models, one clear interface"
         description="Nexa AI keeps provider choice visible and the everyday chat experience simple."
+        typewriter
       />
       <motion.div
         variants={staggerContainer}
@@ -22,7 +23,7 @@ export function Benefits() {
       >
         {benefits.map(({ icon: Icon, title, description }) => (
           <GlowCard key={title} innerClassName="min-h-[180px] p-7">
-            <Icon size={24} fill="currentColor" className="mb-7 text-white" />
+            <Icon size={24} fill="currentColor" className="mb-6 text-white" />
             <h3 className="text-2xl font-semibold tracking-[-0.045em] text-white">{title}</h3>
             <p className="mt-4 text-sm leading-6 text-mist-200">{description}</p>
           </GlowCard>

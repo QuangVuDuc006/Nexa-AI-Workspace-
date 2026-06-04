@@ -5,10 +5,10 @@ import { Reveal } from "../ui/Reveal";
 
 export function CTA() {
   return (
-    <section id="contact" className="px-6 py-20 md:px-16 md:py-28">
+    <section id="contact" className="landing-section-compact px-6 md:px-16">
       <Reveal>
         <motion.div
-          className="relative mx-auto grid max-w-2xl justify-items-center overflow-hidden rounded-[12px] border border-white/10 bg-white/[0.045] px-8 py-16 text-center shadow-card"
+          className="relative mx-auto grid max-w-2xl justify-items-center overflow-hidden rounded-[12px] border border-white/10 bg-white/[0.045] px-8 py-10 text-center shadow-card md:py-12"
           whileHover={{ y: -4, scale: 1.006 }}
           transition={{ type: "spring", stiffness: 150, damping: 24 }}
         >

@@ -19,11 +19,12 @@ export function Pricing() {
   const billingNote = billing === "annual" ? "per month, billed annually" : "per month";
 
   return (
-    <section id="pricing" className="px-6 py-24 md:px-12 md:py-32">
+    <section id="pricing" className="landing-section px-6 md:px-12">
       <SectionHeader
         label="Pricing"
         title="Choose the setup that fits how you use AI APIs"
         description="Start with your own provider keys, then add more connections and controls as you need them."
+        typewriter
       />
       <PricingToggle value={billing} onChange={setBilling} />
       <motion.div
@@ -52,7 +53,7 @@ export function Pricing() {
                   </span>
                 )}
               </div>
-              <div className="mt-7 min-h-[70px]">
+              <div className="mt-6 min-h-[70px]">
                 <div className="flex items-end gap-1">
                   <span className="text-4xl font-semibold tracking-[-0.06em] text-white">{price}</span>
                   {!isCustom && <span className="pb-1 text-sm font-medium text-mist-200">/month</span>}
@@ -60,10 +61,10 @@ export function Pricing() {
                 <p className="mt-2 text-xs font-medium text-mist-300">{isCustom ? "Custom setup for larger deployments" : billingNote}</p>
               </div>
               <p className="mt-4 min-h-[50px] text-sm leading-6 text-mist-200">{description}</p>
-              <WorkspaceButton variant={popular ? "primary" : "secondary"} icon={false} className="mt-7 w-full">
+              <WorkspaceButton variant={popular ? "primary" : "secondary"} icon={false} className="mt-6 w-full">
                 {cta}
               </WorkspaceButton>
-              <div className="mt-8">
+              <div className="mt-6">
                 <p className="mb-4 text-sm font-semibold text-mist-200">What's included:</p>
                 <ul className="grid gap-3">
                   {features.map((feature) => (

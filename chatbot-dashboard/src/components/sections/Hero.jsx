@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { motion } from "framer-motion";
 import { Button } from "../ui/Button";
 import { WorkspaceButton } from "../auth/WorkspaceButton";
@@ -7,12 +7,15 @@ import { SectionLabel } from "../ui/SectionLabel";
 import { StarField } from "../ui/StarField";
 import RotatingText from "../ui/RotatingText";
 import { TrustedBy } from "./TrustedBy";
+import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
 import { heroContainer, heroItem, premiumEase } from "../../utils/motion";
+
+const Antigravity = lazy(() => import("../ui/Antigravity"));
 
 function HeroMockup() {
   return (
     <motion.div
-      className="pointer-events-none relative z-0 mx-auto mt-12 w-full max-w-[430px]"
+      className="pointer-events-none relative z-0 mx-auto mt-10 w-full max-w-[430px]"
       initial={{ opacity: 0, y: 28, scale: 0.985, filter: "blur(10px)" }}
       animate={{ opacity: 1, y: [0, -12, 0], rotate: [0, 0.8, 0], scale: 1, filter: "blur(0px)" }}
       transition={{
@@ -45,13 +48,38 @@ function HeroMockup() {
 }
 
 export function Hero() {
+  const reducedMotion = usePrefersReducedMotion();
+
   return (
-    <section id="home" className="relative -mt-[74px] min-h-[860px] w-full overflow-hidden px-6 pb-16 pt-32 sm:min-h-[900px] md:px-12 md:pt-36 lg:px-16">
+    <section id="home" className="relative -mt-[74px] w-full overflow-hidden px-6 pb-12 pt-28 md:px-12 md:pb-14 md:pt-32 lg:px-16">
       <StarField />
+      {!reducedMotion && (
+        <Suspense fallback={null}>
+          <Antigravity
+            className="antigravity-hero"
+            count={760}
+            mobileCount={360}
+            magnetRadius={14}
+            ringRadius={7.2}
+            waveSpeed={1}
+            waveAmplitude={2.2}
+            particleSize={1.35}
+            lerpSpeed={0.055}
+            color="#b887ff"
+            autoAnimate
+            particleVariance={0.9}
+            rotationSpeed={0.22}
+            depthFactor={0.85}
+            pulseSpeed={3.2}
+            particleShape="capsule"
+            fieldStrength={7.2}
+          />
+        </Suspense>
+      )}
       <OrbitalGlow className="left-1/2 top-[330px] h-[360px] w-[360px] -translate-x-1/2" />
 
       <motion.div
-        className="relative z-10 mx-auto grid max-w-4xl justify-items-center pt-20 text-center sm:pt-24 md:pt-28"
+        className="relative z-10 mx-auto grid max-w-4xl justify-items-center pt-14 text-center sm:pt-16 md:pt-20"
         variants={heroContainer}
         initial="hidden"
         animate="visible"
@@ -93,7 +121,9 @@ export function Hero() {
         <HeroMockup />
       </motion.div>
 
-      <TrustedBy />
+      <div className="relative z-10">
+        <TrustedBy />
+      </div>
     </section>
   );
 }

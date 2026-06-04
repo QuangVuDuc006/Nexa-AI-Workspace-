@@ -79,11 +79,13 @@ function ProcessVisual({ type }) {
 
 export function Process() {
   return (
-    <section id="process" className="px-6 py-24 md:px-16 md:py-32">
+    <section id="process" className="landing-section px-6 md:px-16">
       <SectionHeader
         label="Workflow"
         title="Connect once, then start chatting"
         description="Paste an API key, detect or enter a model, choose what to use, and send your first message."
+        typewriter
+        typewriterDelay={160}
       />
       <motion.div
         className="grid gap-4 md:grid-cols-2"
@@ -97,7 +99,7 @@ export function Process() {
             <SectionLabel>{item.step}</SectionLabel>
             <h3 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-white">{item.title}</h3>
             <p className="mt-3 min-h-[54px] text-sm leading-6 text-mist-200">{item.description}</p>
-            <div className="mt-7">
+            <div className="mt-6">
               <ProcessVisual type={item.visual} />
             </div>
           </GlowCard>

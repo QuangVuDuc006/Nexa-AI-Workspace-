@@ -16,8 +16,8 @@ const footerHref = {
 
 export function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-violetx-800/[0.35] px-6 py-12 md:px-16">
-      <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,0.55fr)]">
+    <footer className="landing-footer border-t border-white/10 bg-violetx-800/[0.35] px-6 md:px-16">
+      <div className="grid gap-8 md:grid-cols-[1.4fr_repeat(3,0.55fr)]">
         <div className="max-w-sm">
           <Logo />
           <p className="mt-5 text-sm leading-6 text-mist-200">
