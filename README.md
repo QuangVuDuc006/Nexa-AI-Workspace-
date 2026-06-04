@@ -2,8 +2,6 @@
   <img src="chatbot-dashboard\public\assets\Landing.png" alt="Nexa AI Logo" width="500">
 </p>
 
-<h1 align="center">Nexa AI</h1>
-
 <p align="center">
   A Secure Multi-Provider AI Workspace
 </p>
