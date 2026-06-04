@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import threading
 from pathlib import Path
 
 import firebase_admin
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials
+
+
+LOGGER = logging.getLogger(__name__)
+LOCAL_FIREBASE_CREDENTIALS_FILE = (
+    Path(__file__).resolve().parents[2]
+    / "chatbot-45f57-firebase-adminsdk-fbsvc-dc0dcdd2d1.json"
+)
+_FIREBASE_INIT_LOCK = threading.Lock()
 
 
 class FirebaseVerificationError(Exception):
@@ -22,38 +32,42 @@ def firebase_project_id():
 
 
 def initialize_firebase_admin():
-    if firebase_admin._apps:
+    try:
         return firebase_admin.get_app()
+    except ValueError:
+        pass
 
-    options = {}
-    project_id = firebase_project_id()
-
-    if project_id:
-        options["projectId"] = project_id
-
-    credentials_json = os.getenv("FIREBASE_ADMIN_CREDENTIALS_JSON", "").strip()
-    credentials_path = (
-        os.getenv("FIREBASE_ADMIN_CREDENTIALS", "").strip()
-        or os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
-    )
-
-    if credentials_json:
+    with _FIREBASE_INIT_LOCK:
         try:
-            cert_data = json.loads(credentials_json)
-        except json.JSONDecodeError as error:
-            raise FirebaseVerificationError("FIREBASE_ADMIN_CREDENTIALS_JSON is invalid JSON.") from error
+            return firebase_admin.get_app()
+        except ValueError:
+            pass
 
-        return firebase_admin.initialize_app(credentials.Certificate(cert_data), options)
+        options = {}
+        project_id = firebase_project_id()
 
-    if credentials_path:
-        path = Path(credentials_path)
+        if project_id:
+            options["projectId"] = project_id
 
-        if not path.exists():
-            raise FirebaseVerificationError(f"Firebase Admin credentials file does not exist: {path}")
+        if os.getenv("FIREBASE_CREDENTIALS", "").strip():
+            LOGGER.info("Using Firebase credentials from environment variable")
 
-        return firebase_admin.initialize_app(credentials.Certificate(str(path)), options)
+            try:
+                cert_data = json.loads(os.environ["FIREBASE_CREDENTIALS"])
+            except json.JSONDecodeError as error:
+                raise FirebaseVerificationError("FIREBASE_CREDENTIALS is invalid JSON.") from error
 
-    return firebase_admin.initialize_app(options=options)
+            credential = credentials.Certificate(cert_data)
+        else:
+            if not LOCAL_FIREBASE_CREDENTIALS_FILE.exists():
+                raise FirebaseVerificationError(
+                    f"Local Firebase credentials file does not exist: {LOCAL_FIREBASE_CREDENTIALS_FILE}"
+                )
+
+            LOGGER.info("Using local Firebase credentials file")
+            credential = credentials.Certificate(str(LOCAL_FIREBASE_CREDENTIALS_FILE))
+
+        return firebase_admin.initialize_app(credential, options)
 
 
 def verify_firebase_id_token(id_token):

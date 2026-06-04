@@ -54,6 +54,14 @@ DATABASE_URL=postgresql://username:password@localhost:5432/chatbot_db
      - `APP_ENV` = `production`
      - `DATABASE_URL` = *(Your Render PostgreSQL connection string)*
      - `SECRET_KEY` = *(A secure, random, long secret string)*
+     - `FIREBASE_CREDENTIALS` = *(The complete Firebase service account JSON object)*
+     - `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`,
+       `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, and
+       `VITE_FIREBASE_APP_ID` = *(Your Firebase web app configuration values)*
+
+   Firebase Admin reads `FIREBASE_CREDENTIALS` on Render. When that variable is not set,
+   local development falls back to `chatbot-45f57-firebase-adminsdk-fbsvc-dc0dcdd2d1.json`
+   in the repository root.
 4. **Build and Start Commands:**
    - **Build Command:** `pip install -r requirements.txt` (and any other frontend build steps if applicable).
    - **Start Command:** `gunicorn app:app` or `python app.py` (depending on your setup).
