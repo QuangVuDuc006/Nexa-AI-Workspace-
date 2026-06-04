@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="chatbot-dashboard\public\assets\Landing.png" alt="Nexa AI Logo" width="220">
+  <img src="chatbot-dashboard\public\assets\Landing.png" alt="Nexa AI Logo" width="500">
 </p>
 
 <h1 align="center">Nexa AI</h1>
