@@ -7,6 +7,13 @@ from services.ai.errors import (
     UnsupportedAttachmentError,
 )
 
+MATH_FORMAT_INSTRUCTION = (
+    "When writing math, output valid LaTeX with single backslashes. Use \\(...\\) for inline math "
+    "and \\[...\\] for display math; do not write escaped delimiters like \\\\[...\\\\]. "
+    "For matrices, use environments such as \\begin{pmatrix}a & b \\\\ c & d\\end{pmatrix}. "
+    "Do not put mathematical formulas inside code blocks unless the user asks for source code."
+)
+
 
 @dataclass(frozen=True)
 class AIResponse:
@@ -37,15 +44,19 @@ def split_attachments(attachments):
 
 def build_user_content(user_message, attachments):
     text_attachments, _image_attachments = split_attachments(attachments)
+    sections = [
+        MATH_FORMAT_INSTRUCTION,
+        "",
+        user_message,
+    ]
 
     if not text_attachments:
-        return user_message
+        return "\n".join(sections)
 
-    sections = [
-        user_message,
+    sections.extend([
         "",
         "Use the attached text files as context. If a file is unrelated, ignore it.",
-    ]
+    ])
 
     for attachment in text_attachments:
         sections.extend([

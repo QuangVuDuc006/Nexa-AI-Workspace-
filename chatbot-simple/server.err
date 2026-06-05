@@ -1,0 +1,138 @@
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5050
+Press CTRL+C to quit
+127.0.0.1 - - [05/Jun/2026 20:27:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 20:27:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 20:28:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:37:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:44:37] "GET /static/vendor/katex/katex.min.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:45:06] "GET /chat HTTP/1.1" 302 -
+127.0.0.1 - - [05/Jun/2026 23:45:06] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:20] "GET /chat HTTP/1.1" 302 -
+127.0.0.1 - - [05/Jun/2026 23:46:20] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:21] "GET /assets/index-C43AJcS3.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:21] "GET /assets/index-D8aI4Mg6.css HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:21] "GET /assets/Antigravity-Xe9_ZPm2.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:21] "GET /assets/Antigravity-DjbbvM5C.css HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:21] "GET /assets/Landing.png HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:21] "GET /assets/Hover.png HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:34] "GET /api/csrf HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:34] "GET /api/csrf HTTP/1.1" 200 -
+[2026-06-05 23:46:34,493] WARNING in security: Rejected request with invalid CSRF token
+127.0.0.1 - - [05/Jun/2026 23:46:34] "POST /api/firebase/session HTTP/1.1" 403 -
+127.0.0.1 - - [05/Jun/2026 23:46:34] "GET /api/csrf HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:35] "POST /api/firebase/session HTTP/1.1" 200 -
+[2026-06-05 23:46:35,239] ERROR in app: Exception on /api/firebase/session [POST]
+Traceback (most recent call last):
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.IntegrityError: UNIQUE constraint failed: users.id
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+  File "C:\Users\Vu Duc Quang\Desktop\Code\Chatbot\chatbot-simple\services\security.py", line 69, in wrapper
+    return fn(*args, **kwargs)
+  File "C:\Users\Vu Duc Quang\Desktop\Code\Chatbot\chatbot-simple\services\security.py", line 111, in wrapper
+    return fn(*args, **kwargs)
+  File "C:\Users\Vu Duc Quang\Desktop\Code\Chatbot\chatbot-simple\app.py", line 358, in firebase_session
+    db.commit()
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\session.py", line 2028, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\session.py", line 1313, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\session.py", line 1288, in _prepare_impl
+    self.session.flush()
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\session.py", line 4352, in flush
+    self._flush(objects)
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\session.py", line 4487, in _flush
+    with util.safe_reraise():
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\session.py", line 4448, in _flush
+    flush_context.execute()
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\orm\persistence.py", line 1048, in _emit_insert_statements
+    result = connection.execute(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\engine\base.py", line 1418, in execute
+    return meth(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\sql\elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\engine\base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) UNIQUE constraint failed: users.id
+[SQL: INSERT INTO users (id, email, display_name, photo_url, auth_provider, is_admin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('003agCjMAKfi1xR9hy02Bu5v71v1', 'quangvd2410831@usth.edu.vn', 'QUANG VU DUC', 'https://lh3.googleusercontent.com/a/ACg8ocK2Iyj6rGfgMhT7Lp3mIb44UOcxUr13Gn4hQQWsKrwvCIx5IA=s96-c', 'firebase', 0, '2026-06-05 16:46:35.216312', '2026-06-05 16:46:35.216312')]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+127.0.0.1 - - [05/Jun/2026 23:46:35] "POST /api/firebase/session HTTP/1.1" 500 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /chat HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/chat.css HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/firebase-auth.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/vendor/katex/katex.min.css?v=local-math-1 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/assets/Normal.png HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/assets/Hover.png HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/vendor/katex/katex.min.js?v=local-math-1 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/frontend/api/client.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/frontend/uploads/files.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/chat.js?v=math-render-3 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/vendor/katex/auto-render.min.js?v=local-math-1 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /api/firebase/config HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /api/providers HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /api/conversations?limit=50 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:37] "GET /static/assets/Hover.png HTTP/1.1" 304 -
+[2026-06-05 23:46:37,678] ERROR in app: Exception on /api/conversations/import [POST]
+Traceback (most recent call last):
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\Vu Duc Quang\AppData\Local\Programs\Python\Python310\lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+  File "C:\Users\Vu Duc Quang\Desktop\Code\Chatbot\chatbot-simple\services\auth.py", line 30, in wrapper
+    return fn(*args, **kwargs)
+  File "C:\Users\Vu Duc Quang\Desktop\Code\Chatbot\chatbot-simple\services\security.py", line 69, in wrapper
+    return fn(*args, **kwargs)
+  File "C:\Users\Vu Duc Quang\Desktop\Code\Chatbot\chatbot-simple\services\security.py", line 111, in wrapper
+    return fn(*args, **kwargs)
+  File "C:\Users\Vu Duc Quang\Desktop\Code\Chatbot\chatbot-simple\app.py", line 467, in conversations_import
+    persist_attachments(db, message, raw_message.get("attachments") or [], settings, user.id)
+NameError: name 'persist_attachments' is not defined
+127.0.0.1 - - [05/Jun/2026 23:46:37] "POST /api/conversations/import HTTP/1.1" 500 -
+127.0.0.1 - - [05/Jun/2026 23:46:52] "POST /api/chat/stream HTTP/1.1" 500 -
+127.0.0.1 - - [05/Jun/2026 23:46:52] "GET /static/vendor/katex/fonts/KaTeX_Math-Italic.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:52] "GET /static/vendor/katex/fonts/KaTeX_Main-Regular.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:46:52] "GET /static/vendor/katex/fonts/KaTeX_Size3-Regular.woff2 HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jun/2026 23:47:47] "GET /health HTTP/1.1" 200 -

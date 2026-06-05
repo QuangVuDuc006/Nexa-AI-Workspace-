@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const CURRENT_USER = {
         id: rawUserId,
         name: document.body?.dataset.userName || "Guest",
+        email: document.body?.dataset.userEmail || "",
         authenticated: document.body?.dataset.authenticated === "true",
     };
     let csrfToken = document.body?.dataset.csrfToken || "";
@@ -16,13 +17,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const MIGRATION_KEY = `workspace_migrated_${USER_STORAGE_ID}`;
     const MAX_ATTACHMENTS = 4;
     const MAX_ATTACHMENT_BYTES = 12 * 1024 * 1024;
-    const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
     const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"]);
     const TEXT_EXTENSIONS = new Set(["txt", "md", "pdf", "docx"]);
-    const SUGGESTIONS = [
-        "Draft a concise project plan.",
-        "Summarize attached research notes.",
-        "Compare implementation options.",
+    const WELCOME_PROMPTS = [
+        "What would you like to do today?",
+        "What's on your mind?",
+        "Where would you like to begin?",
+        "Need help with an idea?",
+        "Let's build something great.",
+        "Ready to learn something new?",
+        "Need writing, coding, or research assistance?",
+        "Ask me anything.",
     ];
 
     const els = {
@@ -59,9 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
         sendButton: document.querySelector(".send-button"),
         stopButton: document.querySelector(".stop-button"),
         attachButton: document.querySelector(".attach-button"),
-        imageButton: document.querySelector(".image-button"),
         fileInput: document.querySelector(".file-input"),
-        imageInput: document.querySelector(".image-input"),
         attachmentTray: document.querySelector(".attachment-tray"),
         chatThread: document.querySelector(".chat-thread"),
         messagesViewport: document.querySelector(".messages"),
@@ -122,6 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let confirmCallback = null;
     let renderQueued = false;
     let preferencesSaveTimer = null;
+    let welcomePromptIndex = Math.floor(Math.random() * WELCOME_PROMPTS.length);
 
     function renderIcons() {
         if (window.lucide) {
@@ -401,6 +405,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             renderApp({ forceScroll: true });
+            renderAllAssistantMath();
         } catch (error) {
             showToast(error.message || "Could not load conversations", "error");
         }
@@ -498,6 +503,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }).format(new Date(value));
     }
 
+    function getConversationPreview(conversation) {
+        const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+        const lastMessage = [...messages]
+            .reverse()
+            .find((message) => String(message?.text || "").trim() || (message?.attachments || []).length > 0);
+
+        if (!lastMessage) {
+            return "No messages yet";
+        }
+
+        const text = String(lastMessage.text || "").replace(/\s+/g, " ").trim();
+        if (text) {
+            return text.length > 76 ? `${text.slice(0, 76).trim()}...` : text;
+        }
+
+        const count = (lastMessage.attachments || []).length;
+        return count === 1 ? "1 attachment" : `${count} attachments`;
+    }
+
     function formatBytes(bytes) {
         if (bytes < 1024) {
             return `${bytes} B`;
@@ -566,6 +590,98 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function normalizeDisplayName(value) {
+        const name = String(value || "").trim();
+        if (!name || /^guest(?:\s+workspace)?$/i.test(name)) {
+            return "";
+        }
+
+        return name;
+    }
+
+    function getGlobalUserField(fieldName) {
+        const candidates = [
+            window.user,
+            window.currentUser,
+            window.profile,
+            window.auth?.currentUser,
+            window.firebase?.auth?.currentUser,
+        ];
+
+        for (const candidate of candidates) {
+            const value = candidate?.[fieldName];
+            if (value) {
+                return value;
+            }
+        }
+
+        return "";
+    }
+
+    function getWelcomeName() {
+        const displayName = normalizeDisplayName(CURRENT_USER.name) ||
+            normalizeDisplayName(getGlobalUserField("displayName")) ||
+            normalizeDisplayName(getGlobalUserField("name"));
+
+        if (displayName) {
+            return displayName;
+        }
+
+        const email = CURRENT_USER.email || getGlobalUserField("email") || "";
+        const emailName = String(email).split("@")[0]?.replace(/[._-]+/g, " ").trim();
+        return normalizeDisplayName(emailName) || "there";
+    }
+
+    function getTimeBasedGreeting() {
+        const hour = new Date().getHours();
+        const name = getWelcomeName();
+
+        if (hour >= 5 && hour < 12) {
+            return `Good morning, ${name}.`;
+        }
+
+        if (hour >= 12 && hour < 18) {
+            return `Good afternoon, ${name}.`;
+        }
+
+        if (hour >= 18) {
+            return `Good evening, ${name}.`;
+        }
+
+        return `Working late, ${name}?`;
+    }
+
+    function getNextWelcomePromptIndex() {
+        if (WELCOME_PROMPTS.length <= 1) {
+            return 0;
+        }
+
+        let nextIndex = welcomePromptIndex;
+        while (nextIndex === welcomePromptIndex) {
+            nextIndex = Math.floor(Math.random() * WELCOME_PROMPTS.length);
+        }
+
+        return nextIndex;
+    }
+
+    function rotateWelcomePrompt() {
+        const prompt = els.chatThread?.querySelector(".welcome-prompt");
+        const conversation = getActiveConversation();
+        const isTyping = document.activeElement === els.messageInput && els.messageInput.value.trim().length > 0;
+
+        if (!prompt || conversation.messages.length > 0 || isTyping) {
+            return;
+        }
+
+        welcomePromptIndex = getNextWelcomePromptIndex();
+        prompt.classList.add("is-changing");
+
+        window.setTimeout(() => {
+            prompt.textContent = WELCOME_PROMPTS[welcomePromptIndex];
+            prompt.classList.remove("is-changing");
+        }, 180);
+    }
+
     function getResolvedTheme() {
         if (state.theme === "system") {
             return systemThemeQuery.matches ? "dark" : "light";
@@ -580,7 +696,7 @@ document.addEventListener("DOMContentLoaded", () => {
         els.html.dataset.themeChoice = state.theme;
 
         if (els.metaTheme) {
-            els.metaTheme.setAttribute("content", resolvedTheme === "dark" ? "#17161d" : "#fbf8fe");
+            els.metaTheme.setAttribute("content", resolvedTheme === "dark" ? "#050505" : "#fbf8fe");
         }
     }
 
@@ -1073,6 +1189,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <i data-lucide="message-square"></i>
                             <span class="conversation-copy">
                                 <span class="conversation-name">${escapeHtml(conversation.title)}</span>
+                                <span class="conversation-preview">${escapeHtml(getConversationPreview(conversation))}</span>
                                 <span class="conversation-date">${formatDate(conversation.updatedAt)}</span>
                             </span>
                         </button>
@@ -1189,7 +1306,6 @@ document.addEventListener("DOMContentLoaded", () => {
         els.sendButton.disabled = isSending || isProcessingAttachment || (!hasText && !hasAttachments);
         els.messageInput.disabled = isSending;
         els.attachButton.disabled = isSending;
-        els.imageButton.disabled = isSending || isProcessingAttachment;
         els.stopButton.hidden = !isSending;
         els.stopButton.disabled = !isSending;
         els.messagesViewport?.setAttribute("aria-busy", String(isSending));
@@ -1303,17 +1419,302 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function hasBareBracketMathIndicators(source) {
+        const text = String(source || "").trim();
+
+        if (!text) {
+            return false;
+        }
+
+        return /\\(begin|frac|sqrt|sum|int|det|mathbb|times|cdot|neq|ne|leq|geq|approx)\b/.test(text) ||
+            /[≠≤≥≈×÷±∓√∑∫∞]/.test(text) ||
+            /[\^_=]/.test(text) ||
+            (/\{[^}]+\}/.test(text) && /[a-zA-Z0-9\\]/.test(text)) ||
+            /\b[a-zA-Z]\s*[\+\-*\/]\s*[a-zA-Z0-9\\{]/.test(text);
+    }
+
+    function protectBareBracketMathBlocks(source) {
+        const tokens = [];
+        const text = String(source || "").replace(
+            /(^|\n)([ \t]*)\[\s*\r?\n([\s\S]*?)\r?\n[ \t]*\](?=\s*(?:\n|$))/g,
+            (match, lineStart, indent, content) => {
+                if (!hasBareBracketMathIndicators(content)) {
+                    return match;
+                }
+
+                const index = tokens.push(content.trim()) - 1;
+                return `${lineStart}${indent}@@nexabaremath${index}@@`;
+            }
+        );
+
+        return { text, tokens };
+    }
+
+    function restoreBareBracketMathBlocks(source, tokens = []) {
+        if (tokens.length === 0) {
+            return source;
+        }
+
+        return String(source || "").replace(/@@nexabaremath(\d+)@@/g, (match, index) => {
+            const content = tokens[Number(index)];
+            return typeof content === "string" ? `\\[\n${content}\n\\]` : match;
+        });
+    }
+
+    function normalizeEscapedLatex(source) {
+        return String(source || "")
+            .replace(/\\\\(?=[\[\]\(\)])/g, "\\")
+            .replace(/\\\\(?=(?:begin|end|frac|dfrac|tfrac|sqrt|det|operatorname|lambda|mathbb|mathrm|mathbf|mathcal|text|times|cdot|neq|ne|leq?|geq?|approx|div|pm|mp|sum|prod|int|lim|infty|left|right|to|Rightarrow|Leftrightarrow|sin|cos|tan|log|ln)\b)/g, "\\");
+    }
+
+    function normalizeLatexSource(source) {
+        return normalizeEscapedLatex(source)
+            .replace(/√\s*\(([^)]+)\)/g, "\\sqrt{$1}")
+            .replace(/√\s*([A-Za-z0-9]+)/g, "\\sqrt{$1}")
+            .replace(/≠/g, "\\ne")
+            .replace(/≤/g, "\\le")
+            .replace(/≥/g, "\\ge")
+            .replace(/≈/g, "\\approx")
+            .replace(/×/g, "\\times")
+            .replace(/÷/g, "\\div")
+            .replace(/±/g, "\\pm")
+            .replace(/∓/g, "\\mp")
+            .replace(/√/g, "\\sqrt{}")
+            .replace(/∑/g, "\\sum")
+            .replace(/∫/g, "\\int")
+            .replace(/∞/g, "\\infty")
+            .replace(/→/g, "\\to")
+            .replace(/⇒/g, "\\Rightarrow")
+            .replace(/⇔/g, "\\Leftrightarrow")
+            .replace(/−/g, "-")
+            .replace(/[“”]/g, "\"")
+            .replace(/[‘’]/g, "'");
+    }
+
+    function hasMathOperator(source) {
+        return /\\(begin|frac|sqrt|sum|int|det|mathbb|times|cdot|neq|ne|leq?|geq?|approx|div|pm|mp|to|Rightarrow|Leftrightarrow)\b/.test(source) ||
+            /[≠≤≥≈=<>×÷±∓√∑∫∞^_]/.test(source);
+    }
+
+    function looksLikeStandaloneMathLine(line) {
+        const text = String(line || "").trim();
+
+        if (
+            !text ||
+            text.length > 220 ||
+            /^\d+[\).]\s+/.test(text) ||
+            /^\\[\[(][\s\S]*\\[\])]$/.test(text) ||
+            /[.!?。！？]\s*$/.test(text)
+        ) {
+            return false;
+        }
+
+        if (!hasMathOperator(text)) {
+            return false;
+        }
+
+        if (/\\begin\{(?:pmatrix|matrix|bmatrix|vmatrix|align|array|cases|split)\}/.test(text)) {
+            return true;
+        }
+
+        const letters = (text.match(/[a-zA-Z]/g) || []).length;
+        const mathSymbols = (text.match(/[=<>≠≤≥≈+\-*\/×÷^_]/g) || []).length;
+        const words = text.match(/[a-zA-ZÀ-ỹ]{4,}/g) || [];
+        const hasEquation = /(?:[A-Za-z0-9)\]}]|\\\})\s*(?:=|≠|≤|≥|≈|<|>|\\ne|\\le|\\ge|\\approx)\s*(?:[A-Za-z0-9\\({\[])/.test(text);
+        const isMostlySymbols = mathSymbols >= 1 && words.length <= 2 && letters <= 18;
+
+        return hasEquation || isMostlySymbols;
+    }
+
+    function normalizeStandaloneMathLines(source) {
+        return String(source || "")
+            .split(/(\r?\n)/)
+            .map((part) => {
+                if (/^\r?\n$/.test(part)) {
+                    return part;
+                }
+
+                const leading = part.match(/^\s*/)?.[0] || "";
+                const trailing = part.match(/\s*$/)?.[0] || "";
+                const text = part.trim();
+
+                if (!looksLikeStandaloneMathLine(text)) {
+                    return part;
+                }
+
+                const displayMode = text.length > 34 || /\\begin\{|\\\\/.test(text);
+                const normalized = normalizeLatexSource(text);
+
+                return displayMode
+                    ? `${leading}\\[ ${normalized} \\]${trailing}`
+                    : `${leading}\\( ${normalized} \\)${trailing}`;
+            })
+            .join("");
+    }
+
+    function normalizeMathContent(text) {
+        if (typeof text !== "string") return text;
+
+        const codePattern = /(```[\s\S]*?```|`[^`\n]*`)/g;
+
+        return String(text || "").split(codePattern).map((chunk) => {
+            if (chunk.startsWith("`")) {
+                return chunk;
+            }
+
+            const normalizedChunk = normalizeEscapedLatex(chunk);
+            const mathPattern = /(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$[^\$\n]+?\$)/g;
+
+            return normalizedChunk.split(mathPattern).map((part, index) => {
+                if (index % 2 === 1) {
+                    return part;
+                }
+
+                const protectedBareMath = protectBareBracketMathBlocks(part);
+                return restoreBareBracketMathBlocks(
+                    normalizeStandaloneMathLines(normalizePlainMath(protectedBareMath.text)),
+                    protectedBareMath.tokens
+                );
+            }).join("");
+        }).join("");
+    }
+
+    function normalizePlainMath(text) {
+        let result = "";
+        let i = 0;
+
+        const patterns = [
+            { name: "env", regex: /^\\begin\{([a-zA-Z]+)\}[\s\S]*?\\end\{\1\}/ },
+            { name: "text", regex: /^\\text\{[^\}]*\}/ },
+            { name: "command", regex: /^\\[a-zA-Z]+/ },
+            { name: "braces", regex: /^\{[^\}]*\}/ },
+            { name: "shortWord", regex: /^[a-zA-Z]{1,3}/ },
+            { name: "number", regex: /^\d+/ },
+            { name: "symbol", regex: /^[\+\-\*\/=\<\>\(\)\[\]\.,;\!\?&\|_^\'\"~′≠≤≥≈×÷±∓√∑∫∞−→⇒⇔]+/ },
+            { name: "space", regex: /^[ \t\r\n](?!\r?\n)/ }
+        ];
+
+        const COMMON_TEXT_WORDS = new Set([
+            "khi", "thì", "và", "cho", "với", "nếu", "của", "là", "có", "tìm", "tính", "nên", "chỉ",
+            "một", "hai", "ba", "như", "các", "nó", "qua", "tại", "mọi", "mỗi", "bởi", "về", "ra", "vào", "lên", "này",
+            "for", "let", "and", "the", "with", "then", "are", "is", "a", "an", "in", "on", "at", "by", "to", "of", "or", "but", "not", "if", "has", "its", "any", "all"
+        ]);
+
+        function isCommonTextWord(word) {
+            if (word === word.toUpperCase() && /[a-zA-Z]/.test(word)) {
+                return false;
+            }
+            return COMMON_TEXT_WORDS.has(word.toLowerCase());
+        }
+
+        while (i < text.length) {
+            let index = i;
+            const tokens = [];
+
+            while (index < text.length) {
+                let matched = false;
+                const remaining = text.slice(index);
+                for (const p of patterns) {
+                    const match = remaining.match(p.regex);
+                    if (match) {
+                        if (p.name === "shortWord") {
+                            const nextChar = remaining[match[0].length] || "";
+                            if (/^[a-zA-Z\u00C0-\u1EF9]/.test(nextChar)) {
+                                continue;
+                            }
+                        }
+                        tokens.push({
+                            type: p.name,
+                            value: match[0]
+                        });
+                        index += match[0].length;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    break;
+                }
+            }
+
+            if (tokens.length > 0) {
+                let startIndex = 0;
+                let endIndex = tokens.length;
+
+                while (startIndex < endIndex && tokens[startIndex].type === "space") {
+                    startIndex++;
+                }
+
+                while (startIndex + 1 < endIndex && tokens[startIndex].type === "shortWord" && isCommonTextWord(tokens[startIndex].value) && tokens[startIndex + 1].type === "space") {
+                    startIndex += 2;
+                }
+
+                while (endIndex > startIndex && tokens[endIndex - 1].type === "space") {
+                    endIndex--;
+                }
+
+                while (endIndex - 2 >= startIndex && tokens[endIndex - 1].type === "shortWord" && isCommonTextWord(tokens[endIndex - 1].value) && tokens[endIndex - 2].type === "space") {
+                    endIndex -= 2;
+                }
+
+                while (endIndex > startIndex && tokens[endIndex - 1].type === "symbol" && /^[.,;:!?]$/.test(tokens[endIndex - 1].value)) {
+                    endIndex--;
+                }
+
+                if (startIndex < endIndex) {
+                    const leadingString = tokens.slice(0, startIndex).map(t => t.value).join("");
+                    const mathString = tokens.slice(startIndex, endIndex).map(t => t.value).join("");
+                    const trailingString = tokens.slice(endIndex).map(t => t.value).join("");
+
+                    const hasTrigger = /\\(begin|frac|sqrt|sum|int|det|mathbb|times|cdot|neq|ne|leq?|geq?|approx|div|pm|mp)\b/.test(mathString) ||
+                                        /\\(begin|frac|sqrt|sum|int|det|mathbb|times|cdot|neq|ne|leq?|geq?|approx|div|pm|mp)/.test(mathString) ||
+                                        /[≠≤≥≈×÷±∓√∑∫∞^_]/.test(mathString) ||
+                                        looksLikeStandaloneMathLine(mathString);
+
+                    if (hasTrigger && mathString.trim().length > 0) {
+                        const isBlock = /\\begin\{(pmatrix|matrix|bmatrix|vmatrix|align|array|cases|split)\}/.test(mathString) ||
+                                        /\\\\/.test(mathString) ||
+                                        mathString.includes("\n") ||
+                                        mathString.length > 50;
+
+                        result += leadingString;
+                        if (isBlock) {
+                            result += `\\[ ${normalizeLatexSource(mathString.trim())} \\]`;
+                        } else {
+                            result += `\\( ${normalizeLatexSource(mathString.trim())} \\)`;
+                        }
+                        result += trailingString;
+                        i = index;
+                    } else {
+                        result += tokens[0].value;
+                        i += tokens[0].value.length;
+                    }
+                } else {
+                    result += tokens[0].value;
+                    i += tokens[0].value.length;
+                }
+            } else {
+                result += text[i];
+                i++;
+            }
+        }
+
+        return result;
+    }
+
     function renderSanitizedMarkdown(fragment, text) {
         if (!window.marked || !window.DOMPurify) {
             return false;
         }
 
         window.marked.setOptions({
-            breaks: false,
+            breaks: true,
             gfm: true,
         });
 
-        const rawHtml = window.marked.parse(String(text || ""));
+        const normalizedText = normalizeMathContent(String(text || ""));
+        const protectedMarkdown = protectMathInMarkdown(normalizedText);
+        const rawHtml = window.marked.parse(protectedMarkdown.markdown);
         const cleanHtml = window.DOMPurify.sanitize(rawHtml, {
             USE_PROFILES: { html: true },
             ADD_ATTR: ["target", "rel"],
@@ -1331,8 +1732,276 @@ document.addEventListener("DOMContentLoaded", () => {
             link.rel = "noreferrer";
         });
 
+        restoreMathPlaceholders(template.content, protectedMarkdown.tokens);
         fragment.appendChild(template.content);
         return true;
+    }
+
+    function protectMathInMarkdown(source) {
+        const tokens = [];
+        const chunks = String(source || "").split(/(```[\s\S]*?```)/g);
+        const markdown = chunks.map((chunk) => {
+            if (chunk.startsWith("```")) {
+                return chunk;
+            }
+
+            return chunk
+                .split(/(`[^`\n]+`)/g)
+                .map((part) => part.startsWith("`") ? part : replaceMathWithPlaceholders(part, tokens))
+                .join("");
+        }).join("");
+
+        return { markdown, tokens };
+    }
+
+    function replaceMathWithPlaceholders(source, tokens) {
+        let output = "";
+        let cursor = 0;
+        const normalizedSource = normalizeEscapedLatex(source);
+        let token = findMathToken(normalizedSource);
+
+        while (token) {
+            output += normalizedSource.slice(cursor, token.start);
+            const index = tokens.push({
+                source: normalizeLatexSource(token.raw),
+                display: token.display,
+            }) - 1;
+            output += `@@nexamath${index}@@`;
+            cursor = token.end;
+            token = findMathToken(normalizedSource.slice(cursor));
+
+            if (token) {
+                token = {
+                    ...token,
+                    start: token.start + cursor,
+                    end: token.end + cursor,
+                };
+            }
+        }
+
+        return output + normalizedSource.slice(cursor);
+    }
+
+    function findMathToken(source) {
+        const delimiters = [
+            { open: "\\[", close: "\\]", display: true },
+            { open: "$$", close: "$$", display: true },
+            { open: "\\(", close: "\\)", display: false },
+            { open: "$", close: "$", display: false },
+        ];
+        let firstToken = null;
+
+        for (const delimiter of delimiters) {
+            let start = source.indexOf(delimiter.open);
+
+            while (start !== -1) {
+                if (delimiter.open === "$") {
+                    const previous = source[start - 1] || "";
+                    const next = source[start + 1] || "";
+
+                    if (previous === "\\" || /\s/.test(next)) {
+                        start = source.indexOf(delimiter.open, start + delimiter.open.length);
+                        continue;
+                    }
+                }
+
+                const end = source.indexOf(delimiter.close, start + delimiter.open.length);
+
+                if (end !== -1) {
+                    const raw = source.slice(start + delimiter.open.length, end).trim();
+                    const beforeClose = source[end - 1] || "";
+
+                    if (raw && (delimiter.open !== "$" || !/\s/.test(beforeClose))) {
+                        const token = {
+                            start,
+                            end: end + delimiter.close.length,
+                            raw,
+                            display: delimiter.display,
+                        };
+
+                        if (!firstToken || token.start < firstToken.start) {
+                            firstToken = token;
+                        }
+                    }
+                }
+
+                break;
+            }
+        }
+
+        return firstToken;
+    }
+
+    function getDelimitedMathSource(source, displayMode) {
+        return displayMode ? `\\[${source}\\]` : `\\(${source}\\)`;
+    }
+
+    function createMathNode(source, displayMode) {
+        const normalizedSource = normalizeLatexSource(source);
+        const fallbackText = getDelimitedMathSource(normalizedSource, displayMode);
+
+        if (!window.katex) {
+            return document.createTextNode(fallbackText);
+        }
+
+        const wrapper = document.createElement(displayMode ? "div" : "span");
+        wrapper.className = displayMode ? "math-block" : "math-inline";
+
+        try {
+            wrapper.innerHTML = window.katex.renderToString(normalizedSource, {
+                displayMode,
+                strict: "ignore",
+                throwOnError: false,
+                trust: false,
+            });
+            return wrapper;
+        } catch (error) {
+            return document.createTextNode(fallbackText);
+        }
+    }
+
+    function appendMathNode(fragment, source, displayMode) {
+        fragment.appendChild(createMathNode(source, displayMode));
+    }
+
+    function restoreMathPlaceholders(root, tokens = []) {
+        if (!root || tokens.length === 0) {
+            return;
+        }
+
+        const placeholderPattern = /@@nexamath(\d+)@@/g;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                const parent = node.parentElement;
+
+                if (!parent || parent.closest("code, pre, kbd, samp")) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+
+                return /@@nexamath\d+@@/.test(node.nodeValue || "")
+                    ? NodeFilter.FILTER_ACCEPT
+                    : NodeFilter.FILTER_REJECT;
+            },
+        });
+        const nodes = [];
+
+        while (walker.nextNode()) {
+            nodes.push(walker.currentNode);
+        }
+
+        nodes.forEach((node) => {
+            const source = node.nodeValue || "";
+            const parent = node.parentElement;
+            const onlyDisplayMath = source.trim().match(/^@@nexamath(\d+)@@$/);
+
+            if (
+                onlyDisplayMath &&
+                parent?.tagName === "P" &&
+                parent.textContent.trim() === source.trim() &&
+                tokens[Number(onlyDisplayMath[1])]?.display
+            ) {
+                const token = tokens[Number(onlyDisplayMath[1])];
+                parent.replaceWith(createMathNode(token.source, token.display));
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            let cursor = 0;
+            placeholderPattern.lastIndex = 0;
+            source.replace(placeholderPattern, (match, index, offset) => {
+                if (offset > cursor) {
+                    fragment.appendChild(document.createTextNode(source.slice(cursor, offset)));
+                }
+
+                const token = tokens[Number(index)];
+                fragment.appendChild(token ? createMathNode(token.source, token.display) : document.createTextNode(match));
+                cursor = offset + match.length;
+                return match;
+            });
+
+            if (cursor < source.length) {
+                fragment.appendChild(document.createTextNode(source.slice(cursor)));
+            }
+
+            node.replaceWith(fragment);
+        });
+    }
+
+    function replaceMathTextNode(textNode) {
+        const source = normalizeEscapedLatex(textNode.nodeValue || "");
+
+        if (!/[\\$]/.test(source)) {
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        let cursor = 0;
+        let token = findMathToken(source.slice(cursor));
+
+        while (token) {
+            const absoluteStart = cursor + token.start;
+            const absoluteEnd = cursor + token.end;
+
+            if (absoluteStart > cursor) {
+                fragment.appendChild(document.createTextNode(source.slice(cursor, absoluteStart)));
+            }
+
+            appendMathNode(fragment, token.raw, token.display);
+            cursor = absoluteEnd;
+            token = findMathToken(source.slice(cursor));
+        }
+
+        if (cursor < source.length) {
+            fragment.appendChild(document.createTextNode(source.slice(cursor)));
+        }
+
+        textNode.replaceWith(fragment);
+    }
+
+    function renderKatexMathInElement(element) {
+        if (!element) {
+            return;
+        }
+
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                const parent = node.parentElement;
+
+                if (!parent || parent.closest("code, pre, kbd, samp, .katex, .math-inline, .math-block")) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+
+                return /[\\$]/.test(node.nodeValue || "")
+                    ? NodeFilter.FILTER_ACCEPT
+                    : NodeFilter.FILTER_REJECT;
+            },
+        });
+        const nodes = [];
+
+        while (walker.nextNode()) {
+            nodes.push(walker.currentNode);
+        }
+
+        nodes.forEach(replaceMathTextNode);
+
+        if (!window.renderMathInElement || element.querySelector(".katex")) {
+            return;
+        }
+
+        window.renderMathInElement(element, {
+            delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "\\[", right: "\\]", display: true },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "$", right: "$", display: false },
+            ],
+            throwOnError: false,
+        });
+    }
+
+    function renderAllAssistantMath() {
+        document.querySelectorAll(".assistant-message .message-content, .ai-message .message-content")
+            .forEach((element) => renderKatexMathInElement(element));
     }
 
     function renderMessageContent(text, isError = false, options = {}) {
@@ -1350,7 +2019,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return fragment;
         }
 
-        const parts = String(text || "").split("```");
+        const parts = normalizeMathContent(String(text || "")).split("```");
 
         parts.forEach((part, index) => {
             if (!part) {
@@ -1489,7 +2158,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function createMessageElement(message) {
         const row = document.createElement("article");
-        row.className = `message ${message.role === "user" ? "user-message" : "ai-message"}`;
+        row.className = `message ${message.role === "user" ? "user-message" : "ai-message assistant-message"}`;
         row.dataset.messageId = message.id;
 
         const avatar = document.createElement("span");
@@ -1529,6 +2198,10 @@ document.addEventListener("DOMContentLoaded", () => {
             content.appendChild(renderMessageContent(message.text, message.isError, {
                 markdown: message.role === "ai",
             }));
+
+            if (!message.isError) {
+                renderKatexMathInElement(content);
+            }
         }
 
         bubble.appendChild(content);
@@ -1549,6 +2222,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         row.appendChild(avatar);
         row.appendChild(shell);
+
         return row;
     }
 
@@ -1556,15 +2230,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const empty = document.createElement("section");
         empty.className = "empty-state";
         empty.innerHTML = `
-            <span class="empty-kicker">Nexa AI</span>
-            <h2>Start a focused chat session.</h2>
-            <p>Ask a question, attach files, and keep useful conversations organized in the history panel.</p>
-            <div class="suggestions">
-                ${SUGGESTIONS.map((suggestion) => `
-                    <button class="suggestion-button" type="button" data-action="use-suggestion" data-suggestion="${escapeAttribute(suggestion)}">
-                        ${escapeHtml(suggestion)}
-                    </button>
-                `).join("")}
+            <div class="welcome-copy" aria-live="polite">
+                <p class="welcome-greeting">${escapeHtml(getTimeBasedGreeting())}</p>
+                <h2 class="welcome-prompt">${escapeHtml(WELCOME_PROMPTS[welcomePromptIndex])}</h2>
             </div>
         `;
         return empty;
@@ -1573,17 +2241,21 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderChat(options = {}) {
         const conversation = getActiveConversation();
         const shouldScroll = options.forceScroll || (state.settings.autoScroll && isNearBottom());
+        const isEmptyConversation = conversation.messages.length === 0;
         els.chatThread.innerHTML = "";
+        document.body.classList.toggle("home-empty", isEmptyConversation);
 
-        if (conversation.messages.length === 0) {
+        if (isEmptyConversation) {
             els.chatThread.appendChild(createEmptyState());
         } else {
             conversation.messages.forEach((message) => {
-                els.chatThread.appendChild(createMessageElement(message));
+                const messageElement = createMessageElement(message);
+                els.chatThread.appendChild(messageElement);
             });
         }
 
         renderIcons();
+        renderAllAssistantMath();
 
         if (shouldScroll) {
             requestAnimationFrame(scrollMessagesToBottom);
@@ -1599,8 +2271,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const shouldScroll = options.forceScroll || (state.settings.autoScroll && isNearBottom());
-        existing.replaceWith(createMessageElement(message));
+        const messageElement = createMessageElement(message);
+        existing.replaceWith(messageElement);
         renderIcons();
+        renderAllAssistantMath();
 
         if (shouldScroll) {
             requestAnimationFrame(scrollMessagesToBottom);
@@ -1635,6 +2309,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderChat({ forceScroll: true });
             }
             renderIcons();
+            renderAllAssistantMath();
         });
     }
 
@@ -1767,6 +2442,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (event.type === "done") {
                     assistantMessage.provider = event.provider || assistantMessage.provider || null;
                     assistantMessage.model = event.model || assistantMessage.model || null;
+                    assistantMessage.isLoading = false;
+                    updateRenderedMessage(assistantMessage, { forceScroll: true });
+                    renderAllAssistantMath();
                 }
             });
 
@@ -1790,6 +2468,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setLoading(false, null);
             getActiveConversation().updatedAt = Date.now();
             renderApp({ forceScroll: true });
+            renderAllAssistantMath();
             els.messageInput.focus();
         }
     }
@@ -2369,54 +3048,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function addImages(files) {
-        const selectedFiles = Array.from(files || []);
-
-        if (selectedFiles.length === 0) {
-            return;
-        }
-
-        isProcessingAttachment = true;
-        renderApp();
-
-        try {
-            for (const file of selectedFiles) {
-                if (pendingAttachments.length >= MAX_ATTACHMENTS) {
-                    showToast(`You can attach up to ${MAX_ATTACHMENTS} files`, "error");
-                    break;
-                }
-
-                if (!isSupportedImageFile(file)) {
-                    showToast(`${file.name} is not a supported image file`, "error");
-                    continue;
-                }
-
-                if (file.size > MAX_IMAGE_BYTES) {
-                    showToast(`${file.name} is larger than ${formatBytes(MAX_IMAGE_BYTES)}`, "error");
-                    continue;
-                }
-
-                try {
-                    const attachment = await uploadFileToServer(file);
-                    pendingAttachments.push({
-                        id: attachment.id || createId("image"),
-                        ...attachment,
-                        previewUrl: attachment.previewUrl || attachment.url || attachment.dataUrl || "",
-                    });
-                    renderApp();
-                } catch (error) {
-                    showToast(error.message || `Could not upload ${file.name}`, "error");
-                }
-            }
-        } catch (error) {
-            showToast(error.message || "Could not process the image", "error");
-        } finally {
-            isProcessingAttachment = false;
-            els.imageInput.value = "";
-            renderApp();
-        }
-    }
-
     function removeAttachment(attachmentId) {
         const attachment = pendingAttachments.find((item) => item.id === attachmentId);
         revokeAttachmentObjectUrl(attachment);
@@ -2464,7 +3095,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         });
-        els.clearAllButton.addEventListener("click", () => {
+        els.clearAllButton?.addEventListener("click", () => {
             openConfirmDialog({
                 title: "Clear history?",
                 message: "This removes every saved conversation for your account.",
@@ -2554,8 +3185,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         els.attachButton.addEventListener("click", () => els.fileInput.click());
         els.fileInput.addEventListener("change", () => addFiles(els.fileInput.files));
-        els.imageButton.addEventListener("click", () => els.imageInput.click());
-        els.imageInput.addEventListener("change", () => addImages(els.imageInput.files));
         els.stopButton.addEventListener("click", stopGeneration);
         els.mobileMenuButton?.addEventListener("click", () => setSidebarOpen(true));
         els.sidebarCloseButton?.addEventListener("click", () => setSidebarOpen(false));
@@ -2765,6 +3394,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     bindEvents();
+    window.addEventListener("load", () => {
+        renderAllAssistantMath();
+    });
+    window.setInterval(rotateWelcomePrompt, 12000);
     renderApp({ forceScroll: true });
     loadProviders();
     loadConversations().then(migrateLegacyLocalHistory);

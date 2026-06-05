@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Nexa AI is an AI Workspace with attachments, account history, and streaming assistant responses.">
-    <meta name="theme-color" content="#fbf8fe">
+    <meta name="theme-color" content="#050505">
     <title>Nexa AI | AI Workspace</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/Hover.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/Hover.png') }}">
@@ -12,9 +12,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/katex/katex.min.css') }}?v=local-math-1">
     <script src="https://unpkg.com/lucide@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+    <script src="{{ url_for('static', filename='vendor/katex/katex.min.js') }}?v=local-math-1" defer></script>
+    <script src="{{ url_for('static', filename='vendor/katex/auto-render.min.js') }}?v=local-math-1" defer></script>
     <script>
         (function () {
             var theme = localStorage.getItem("workspace_theme_preference") || "dark";
@@ -78,6 +81,13 @@
                 </button>
             </nav>
 
+            <section class="sidebar-history" aria-label="Conversation history">
+                <div class="sidebar-history-heading">
+                    <span class="sidebar-item-label">Recent chats</span>
+                </div>
+                <nav class="conversation-list" aria-label="Conversations"></nav>
+            </section>
+
             <footer class="sidebar-bottom">
                 <a class="sidebar-bottom-link sidebar-logout" href="{{ url_for('logout') if current_user else url_for('login') }}" data-firebase-logout>
                     <span class="material-symbols-outlined">{{ 'logout' if current_user else 'login' }}</span>
@@ -109,12 +119,6 @@
                     <button class="icon-button search-toggle-button" type="button" aria-label="Search conversations" aria-expanded="false">
                         <span class="material-symbols-outlined">search</span>
                     </button>
-                    <label class="active-model-switcher" title="Active AI provider and model">
-                        <span class="active-model-prefix">Using</span>
-                        <select class="active-provider-select" aria-label="Switch active AI model">
-                            <option value="">No Model Selected</option>
-                        </select>
-                    </label>
                     <button class="icon-button rename-chat-button" type="button" aria-label="Rename current chat">
                         <span class="material-symbols-outlined">edit</span>
                     </button>
@@ -141,13 +145,16 @@
             <form class="composer" autocomplete="off">
                 <div class="attachment-tray" hidden></div>
                 <div class="composer-row">
-                    <button class="icon-button attach-button" type="button" aria-label="Attach text file">
-                        <span class="material-symbols-outlined">attach_file</span>
+                    <button class="icon-button attach-button" type="button" aria-label="Attach file">
+                        <span class="material-symbols-outlined">add</span>
                     </button>
-                    <button class="icon-button image-button" type="button" aria-label="Attach image">
-                        <span class="material-symbols-outlined">add_photo_alternate</span>
-                    </button>
-                    <textarea class="message-input" rows="1" placeholder="Start typing..." aria-label="Message"></textarea>
+                    <textarea class="message-input" rows="1" placeholder="Ask anything..." aria-label="Message"></textarea>
+                    <label class="active-model-switcher composer-model-switcher" title="Active AI provider and model">
+                        <span class="active-model-prefix">Using</span>
+                        <select class="active-provider-select" aria-label="Switch active AI model">
+                            <option value="">No Model Selected</option>
+                        </select>
+                    </label>
                     <button class="stop-button" type="button" hidden>
                         <span class="material-symbols-outlined">stop</span>
                         <span>Stop</span>
@@ -158,21 +165,8 @@
                 </div>
                 <p class="composer-note">Nexa AI can make mistakes. Consider verifying important information.</p>
                 <input class="file-input" type="file" multiple hidden accept=".txt,.md,.pdf,.docx,.jpg,.jpeg,.png,.webp,.gif,text/plain,text/markdown,image/jpeg,image/png,image/webp,image/gif">
-                <input class="image-input" type="file" multiple hidden accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
             </form>
         </section>
-
-        <aside class="history-panel" aria-label="Conversation history">
-            <header class="history-header">
-                <div>
-                    <h2>History</h2>
-                    <span>{{ 'Your conversations' if current_user else 'Guest conversations' }}</span>
-                </div>
-                <button class="text-button clear-all-button" type="button">Clear</button>
-            </header>
-
-            <nav class="conversation-list" aria-label="Conversations"></nav>
-        </aside>
     </main>
 
     <section class="dialog-layer settings-dialog" aria-hidden="true">
@@ -325,7 +319,7 @@
 
     <script src="{{ url_for('static', filename='frontend/api/client.js') }}" defer></script>
     <script src="{{ url_for('static', filename='frontend/uploads/files.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='chat.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='chat.js') }}?v=math-render-3" defer></script>
     <script type="module" src="{{ url_for('static', filename='firebase-auth.js') }}"></script>
 </body>
 </html>

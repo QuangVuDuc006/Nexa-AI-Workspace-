@@ -1,3 +1,44 @@
-*firebase-adminsdk*.json
+# Python Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+ENV/
+
+# Web / Node / Frontend Build output
+node_modules/
+dist/
+build/
+.svelte-kit/
+.next/
+out/
+
+# Environment configurations and Secrets
 .env
 .env.*
+!.env.example
+*firebase-adminsdk*.json
+*serviceAccount*.json
+*.pem
+*.key
+
+# Log files
+*.log
+server-*.log
+vite-dev.log
+vite-dev.err.log
+server-*.out
+server-*.err
+
+# Local databases and File Uploads
+instance/
+chatbot-simple/instance/
+*.sqlite3
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
