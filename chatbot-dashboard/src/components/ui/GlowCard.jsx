@@ -1,12 +1,16 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useMobilePerformanceMode } from "../../hooks/useMobilePerformanceMode";
 import { revealVariants, softSpring } from "../../utils/motion";
 
 export function GlowCard({ children, className = "", innerClassName = "", hover = true }) {
+  const mobilePerformanceMode = useMobilePerformanceMode();
+  const enableHoverMotion = hover && !mobilePerformanceMode;
+
   return (
     <motion.div
       variants={revealVariants}
-      whileHover={hover ? { y: -6, scale: 1.01 } : undefined}
+      whileHover={enableHoverMotion ? { y: -6, scale: 1.01 } : undefined}
       transition={softSpring}
       className={`group rounded-card border border-white/10 bg-white/[0.035] p-[1px] shadow-card ${className}`}
     >

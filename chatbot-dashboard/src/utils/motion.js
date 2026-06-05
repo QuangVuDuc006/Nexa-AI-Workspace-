@@ -2,32 +2,29 @@ export const premiumEase = [0.22, 1, 0.36, 1];
 export const softSpring = { type: "spring", stiffness: 170, damping: 24, mass: 0.9 };
 
 export const revealVariants = {
-  hidden: { opacity: 0, y: 44, filter: "blur(10px)" },
+  hidden: { opacity: 0, y: 32 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
-    transition: { duration: 0.85, ease: premiumEase },
+    transition: { duration: 0.72, ease: premiumEase },
   },
 };
 
 export const leftRevealVariants = {
-  hidden: { opacity: 0, x: -42, filter: "blur(10px)" },
+  hidden: { opacity: 0, x: -32 },
   visible: {
     opacity: 1,
     x: 0,
-    filter: "blur(0px)",
-    transition: { duration: 0.9, ease: premiumEase },
+    transition: { duration: 0.72, ease: premiumEase },
   },
 };
 
 export const rightRevealVariants = {
-  hidden: { opacity: 0, x: 42, filter: "blur(10px)" },
+  hidden: { opacity: 0, x: 32 },
   visible: {
     opacity: 1,
     x: 0,
-    filter: "blur(0px)",
-    transition: { duration: 0.9, ease: premiumEase },
+    transition: { duration: 0.72, ease: premiumEase },
   },
 };
 
@@ -52,13 +49,11 @@ export const heroContainer = {
 };
 
 export const heroItem = {
-  hidden: { opacity: 0, y: 28, scale: 0.985, filter: "blur(10px)" },
+  hidden: { opacity: 0, y: 24, scale: 0.985 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    filter: "blur(0px)",
-    transition: { duration: 0.9, ease: premiumEase },
+    transition: { duration: 0.72, ease: premiumEase },
   },
 };
-

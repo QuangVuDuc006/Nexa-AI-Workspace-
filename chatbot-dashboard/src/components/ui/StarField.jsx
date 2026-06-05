@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useMobilePerformanceMode } from "../../hooks/useMobilePerformanceMode";
 import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
 
 const stars = Array.from({ length: 118 }, (_, index) => ({
@@ -13,15 +14,18 @@ const stars = Array.from({ length: 118 }, (_, index) => ({
 
 export function StarField() {
   const reducedMotion = usePrefersReducedMotion();
+  const mobilePerformanceMode = useMobilePerformanceMode();
+  const visibleStars = mobilePerformanceMode ? stars.slice(0, 44) : stars;
+  const shouldAnimate = !reducedMotion && !mobilePerformanceMode;
 
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 overflow-hidden"
-      animate={reducedMotion ? undefined : { x: [0, -10, 8, 0], y: [0, 8, -6, 0] }}
-      transition={reducedMotion ? undefined : { duration: 28, repeat: Infinity, ease: "linear" }}
+      animate={shouldAnimate ? { x: [0, -10, 8, 0], y: [0, 8, -6, 0] } : undefined}
+      transition={shouldAnimate ? { duration: 28, repeat: Infinity, ease: "linear" } : undefined}
       aria-hidden="true"
     >
-      {stars.map((star) => (
+      {visibleStars.map((star) => (
         <motion.span
           key={star.id}
           className="absolute rounded-full bg-white"
@@ -32,8 +36,8 @@ export function StarField() {
             height: star.size,
             opacity: star.opacity,
           }}
-          animate={reducedMotion ? undefined : { opacity: [star.opacity * 0.35, star.opacity, star.opacity * 0.55] }}
-          transition={reducedMotion ? undefined : { duration: 4.8, repeat: Infinity, delay: star.delay, ease: "easeInOut" }}
+          animate={shouldAnimate ? { opacity: [star.opacity * 0.35, star.opacity, star.opacity * 0.55] } : undefined}
+          transition={shouldAnimate ? { duration: 4.8, repeat: Infinity, delay: star.delay, ease: "easeInOut" } : undefined}
         />
       ))}
     </motion.div>

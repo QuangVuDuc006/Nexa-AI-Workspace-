@@ -44,7 +44,7 @@
 .text-rotate-element {
   display: inline-block;
   line-height: 1;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
 }
 
 .text-rotate-space {
@@ -116,6 +116,16 @@
 @media (max-width: 640px) {
   .rotating-hero-word {
     margin-top: 0.16em;
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.1);
+  }
+
+  .rotating-hero-word::before {
+    animation: none;
+    opacity: 0.22;
+  }
+
+  .text-rotate-element {
+    will-change: auto;
   }
 }
 

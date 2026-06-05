@@ -12,14 +12,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest" defer></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v=mobile-perf-1">
 </head>
 <body class="landing-page">
     <div class="page-gradient" aria-hidden="true"></div>
 
     <nav class="site-nav" aria-label="Primary navigation">
         <a class="nav-brand" href="{{ url_for('landing') }}" aria-label="Nexa AI home">
-            <img class="brand-logo landing-logo" src="{{ url_for('static', filename='assets/Landing.png') }}" alt="Nexa AI logo">
+            <img class="brand-logo landing-logo" src="{{ url_for('static', filename='assets/Landing.png') }}" alt="Nexa AI logo" width="260" height="52" decoding="async" fetchpriority="high">
         </a>
         <button class="nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false">
             <span></span>
@@ -66,7 +66,7 @@
             <div class="hero-preview reveal">
                 <div class="preview-shell floating-preview">
                     <div class="preview-core">
-                        <img class="preview-image" src="{{ url_for('static', filename='chat-preview.png') }}" alt="Nexa AI conversation interface preview">
+                        <img class="preview-image" src="{{ url_for('static', filename='assets/Normal.png') }}" alt="Nexa AI conversation interface preview" loading="lazy" decoding="async">
                         <div class="preview-callout preview-callout-model">
                             <i data-lucide="sliders-horizontal"></i>
                             <span>AI access is managed securely</span>
@@ -315,7 +315,7 @@
 
     <footer class="site-footer section-frame">
         <a class="nav-brand" href="{{ url_for('landing') }}">
-            <img class="brand-logo landing-logo" src="{{ url_for('static', filename='assets/Landing.png') }}" alt="Nexa AI logo">
+            <img class="brand-logo landing-logo" src="{{ url_for('static', filename='assets/Landing.png') }}" alt="Nexa AI logo" loading="lazy" decoding="async" width="260" height="52">
         </a>
         <p>&copy; <span data-year></span> Nexa AI. AI Workspace.</p>
         <div>
@@ -324,6 +324,6 @@
         </div>
     </footer>
 
-    <script src="{{ url_for('static', filename='landing.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='landing.js') }}?v=mobile-perf-1" defer></script>
 </body>
 </html>

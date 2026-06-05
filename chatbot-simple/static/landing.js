@@ -8,7 +8,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const revealItems = document.querySelectorAll(".reveal, .stagger > *");
     const year = document.querySelector("[data-year]");
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mobilePerformanceQuery = window.matchMedia("(max-width: 767px)");
     const prefersReducedMotion = () => reducedMotionQuery.matches;
+    const prefersReducedOrMobileMotion = () => reducedMotionQuery.matches || mobilePerformanceQuery.matches;
 
     if (window.lucide) {
         window.lucide.createIcons();
@@ -126,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const target = entry.target;
                     const siblings = Array.from(target.parentElement?.children || []);
                     const staggerIndex = siblings.indexOf(target);
-                    const delay = !prefersReducedMotion() && target.parentElement?.classList.contains("stagger")
+                    const delay = !prefersReducedOrMobileMotion() && target.parentElement?.classList.contains("stagger")
                         ? Math.max(0, staggerIndex) * 100
                         : 0;
 
@@ -176,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         summary.addEventListener("click", (event) => {
-            if (prefersReducedMotion()) {
+            if (prefersReducedOrMobileMotion()) {
                 return;
             }
 

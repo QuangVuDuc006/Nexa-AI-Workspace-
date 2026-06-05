@@ -3,12 +3,14 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SectionHeader } from "../ui/SectionHeader";
 import { Reveal } from "../ui/Reveal";
+import { useMobilePerformanceMode } from "../../hooks/useMobilePerformanceMode";
+import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
 import { leftRevealVariants, rightRevealVariants } from "../../utils/motion";
 
 const caseStudies = [
   {
     logo: "CODE",
-    image: "https://images.unsplash.com/photo-1456324504439-367cee3b3c32?auto=format&fit=crop&w=900&q=85",
+    image: "https://images.unsplash.com/photo-1456324504439-367cee3b3c32?auto=format&fit=crop&fm=webp&w=900&q=78",
     alt: "Developer notes and laptop on a desk",
     quote: "A developer switches models based on the problem",
     body:
@@ -17,7 +19,7 @@ const caseStudies = [
   },
   {
     logo: "STUDY",
-    image: "https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=900&q=85",
+    image: "https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&fm=webp&w=900&q=78",
     alt: "Student reviewing notes and documents",
     quote: "A student uses existing API keys in one chatbot",
     body:
@@ -26,7 +28,7 @@ const caseStudies = [
   },
   {
     logo: "TEST",
-    image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=85",
+    image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&fm=webp&w=900&q=78",
     alt: "Developer testing APIs on a computer",
     quote: "An AI power user compares providers without dashboard hopping",
     body:
@@ -38,6 +40,9 @@ const caseStudies = [
 export function CaseStudies() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(1);
+  const mobilePerformanceMode = useMobilePerformanceMode();
+  const reducedMotion = usePrefersReducedMotion();
+  const shouldAnimateHint = !mobilePerformanceMode && !reducedMotion;
   const activeCase = caseStudies[activeIndex];
 
   const showCase = (nextIndex) => {
@@ -75,9 +80,9 @@ export function CaseStudies() {
           <motion.article
             key={activeCase.quote}
             custom={direction}
-            initial={{ opacity: 0, x: direction * 60, filter: "blur(8px)" }}
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, x: direction * -60, filter: "blur(8px)" }}
+            initial={reducedMotion ? false : { opacity: 0, x: direction * 42 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * -42 }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             className="grid select-none items-center gap-8 lg:grid-cols-[0.92fr_1fr] lg:gap-10"
           >
@@ -86,8 +91,12 @@ export function CaseStudies() {
                 <img
                   className="h-[330px] w-full rounded-[13px] object-cover brightness-[0.72] saturate-[0.9] md:h-[430px]"
                   src={activeCase.image}
+                  srcSet={`${activeCase.image.replace("w=900", "w=480")} 480w, ${activeCase.image.replace("w=900", "w=720")} 720w, ${activeCase.image} 900w`}
+                  sizes="(max-width: 767px) calc(100vw - 48px), (max-width: 1023px) calc(100vw - 96px), 520px"
                   alt={activeCase.alt}
                   draggable="false"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </Reveal>
@@ -129,8 +138,8 @@ export function CaseStudies() {
         </button>
         <motion.span
           className="min-w-[132px] text-center"
-          animate={{ x: [0, 5, 0] }}
-          transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+          animate={shouldAnimateHint ? { x: [0, 5, 0] } : undefined}
+          transition={shouldAnimateHint ? { duration: 3.5, repeat: Infinity, ease: "easeInOut" } : undefined}
         >
           Drag to explore
         </motion.span>
@@ -147,8 +156,8 @@ export function CaseStudies() {
         {caseStudies.map((item, index) => (
           <button
             key={item.quote}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              index === activeIndex ? "w-8 bg-violetx-400" : "w-3 bg-white/20 hover:bg-white/40"
+            className={`h-1.5 w-8 origin-center rounded-full transition duration-300 ${
+              index === activeIndex ? "scale-x-100 bg-violetx-400" : "scale-x-[0.38] bg-white/20 hover:bg-white/40"
             }`}
             type="button"
             aria-label={`Show case study ${index + 1}`}

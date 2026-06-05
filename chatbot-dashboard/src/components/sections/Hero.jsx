@@ -7,23 +7,31 @@ import { SectionLabel } from "../ui/SectionLabel";
 import { StarField } from "../ui/StarField";
 import RotatingText from "../ui/RotatingText";
 import { TrustedBy } from "./TrustedBy";
+import { useMobilePerformanceMode } from "../../hooks/useMobilePerformanceMode";
 import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
 import { heroContainer, heroItem, premiumEase } from "../../utils/motion";
 
 const Antigravity = lazy(() => import("../ui/Antigravity"));
 
 function HeroMockup() {
+  const mobilePerformanceMode = useMobilePerformanceMode();
+  const reducedMotion = usePrefersReducedMotion();
+  const shouldAnimateFloat = !mobilePerformanceMode && !reducedMotion;
+
   return (
     <motion.div
       className="pointer-events-none relative z-0 mx-auto mt-10 w-full max-w-[430px]"
-      initial={{ opacity: 0, y: 28, scale: 0.985, filter: "blur(10px)" }}
-      animate={{ opacity: 1, y: [0, -12, 0], rotate: [0, 0.8, 0], scale: 1, filter: "blur(0px)" }}
+      initial={reducedMotion ? false : { opacity: 0, y: 24, scale: 0.985 }}
+      animate={
+        shouldAnimateFloat
+          ? { opacity: 1, y: [0, -12, 0], rotate: [0, 0.8, 0], scale: 1 }
+          : { opacity: 1, y: 0, rotate: 0, scale: 1 }
+      }
       transition={{
         opacity: { duration: 0.9, ease: premiumEase, delay: 0.7 },
-        filter: { duration: 0.9, ease: premiumEase, delay: 0.7 },
         scale: { duration: 0.9, ease: premiumEase, delay: 0.7 },
-        y: { duration: 8, repeat: Infinity, ease: "easeInOut" },
-        rotate: { duration: 8, repeat: Infinity, ease: "easeInOut" },
+        y: shouldAnimateFloat ? { duration: 8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.9, ease: premiumEase },
+        rotate: shouldAnimateFloat ? { duration: 8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.9, ease: premiumEase },
       }}
       aria-hidden="true"
     >
@@ -49,11 +57,12 @@ function HeroMockup() {
 
 export function Hero() {
   const reducedMotion = usePrefersReducedMotion();
+  const mobilePerformanceMode = useMobilePerformanceMode();
 
   return (
     <section id="home" className="relative -mt-[74px] w-full overflow-hidden px-6 pb-12 pt-28 md:px-12 md:pb-14 md:pt-32 lg:px-16">
       <StarField />
-      {!reducedMotion && (
+      {!reducedMotion && !mobilePerformanceMode && (
         <Suspense fallback={null}>
           <Antigravity
             className="antigravity-hero"
@@ -76,7 +85,7 @@ export function Hero() {
           />
         </Suspense>
       )}
-      <OrbitalGlow className="left-1/2 top-[330px] h-[360px] w-[360px] -translate-x-1/2" />
+      {!mobilePerformanceMode && <OrbitalGlow className="left-1/2 top-[330px] h-[360px] w-[360px] -translate-x-1/2" />}
 
       <motion.div
         className="relative z-10 mx-auto grid max-w-4xl justify-items-center pt-14 text-center sm:pt-16 md:pt-20"
@@ -98,15 +107,15 @@ export function Hero() {
             texts={["Chat", "Switch", "Explore"]}
             mainClassName="rotating-hero-word"
             staggerFrom="last"
-            initial={{ y: "100%", opacity: 0, filter: "blur(8px)" }}
-            animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-            exit={{ y: "-120%", opacity: 0, filter: "blur(8px)" }}
-            staggerDuration={0.025}
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "-120%", opacity: 0 }}
+            staggerDuration={mobilePerformanceMode ? 0 : 0.025}
             splitLevelClassName="rotating-hero-word-inner"
             elementLevelClassName="rotating-hero-letter"
             transition={{ type: "spring", damping: 30, stiffness: 420 }}
             rotationInterval={2000}
-            splitBy="characters"
+            splitBy={mobilePerformanceMode ? "words" : "characters"}
           />
         </motion.h1>
         <motion.p variants={heroItem} className="mt-6 max-w-2xl text-base leading-7 text-mist-200 md:text-lg">

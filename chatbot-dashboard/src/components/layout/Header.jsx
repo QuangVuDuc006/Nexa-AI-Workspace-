@@ -13,7 +13,15 @@ const SHOW_SCROLL_THRESHOLD = 4;
 function Logo() {
   return (
     <a className="flex min-w-0 shrink-0 items-center" href="/" aria-label="Nexa AI home">
-      <img className="h-[40px] w-auto max-w-[190px] bg-transparent object-contain sm:h-[52px] sm:max-w-[260px]" src="/assets/Landing.png" alt="Nexa AI logo" />
+      <img
+        className="h-[40px] w-auto max-w-[190px] bg-transparent object-contain sm:h-[52px] sm:max-w-[260px]"
+        src="/assets/Landing.png"
+        alt="Nexa AI logo"
+        width="260"
+        height="52"
+        decoding="async"
+        fetchPriority="high"
+      />
     </a>
   );
 }
@@ -24,6 +32,7 @@ export function Header() {
   const previousScrollY = useRef(0);
   const scrollDirection = useRef(null);
   const scrollDistance = useRef(0);
+  const visibleRef = useRef(true);
   const reducedMotion = usePrefersReducedMotion();
   const { user, logout } = useAuth();
 
@@ -33,6 +42,15 @@ export function Header() {
     scrollDirection.current = null;
     scrollDistance.current = 0;
 
+    const setTopbarVisible = (nextVisible) => {
+      if (visibleRef.current === nextVisible) {
+        return;
+      }
+
+      visibleRef.current = nextVisible;
+      setIsVisible(nextVisible);
+    };
+
     const updateVisibility = () => {
       frameId = undefined;
 
@@ -41,7 +59,7 @@ export function Header() {
       previousScrollY.current = currentScrollY;
 
       if (currentScrollY <= TOPBAR_TOP_ZONE || open) {
-        setIsVisible(true);
+        setTopbarVisible(true);
         scrollDirection.current = null;
         scrollDistance.current = 0;
         return;
@@ -61,10 +79,10 @@ export function Header() {
       scrollDistance.current += Math.abs(scrollDelta);
 
       if (nextDirection === "down" && scrollDistance.current >= HIDE_SCROLL_THRESHOLD) {
-        setIsVisible(false);
+        setTopbarVisible(false);
         scrollDistance.current = 0;
       } else if (nextDirection === "up" && scrollDistance.current >= SHOW_SCROLL_THRESHOLD) {
-        setIsVisible(true);
+        setTopbarVisible(true);
         scrollDistance.current = 0;
       }
     };
@@ -76,7 +94,7 @@ export function Header() {
     };
 
     if (open) {
-      setIsVisible(true);
+      setTopbarVisible(true);
     }
 
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -126,7 +144,7 @@ export function Header() {
                     title="Sign out"
                   >
                     {user.photoURL ? (
-                      <img className="h-6 w-6 rounded-[6px] object-cover" src={user.photoURL} alt="" />
+                      <img className="h-6 w-6 rounded-[6px] object-cover" src={user.photoURL} alt="" loading="lazy" decoding="async" />
                     ) : (
                       <span className="grid h-6 w-6 place-items-center rounded-[6px] bg-violetx-500 text-[10px]">
                         {(user.displayName || user.email || "U").slice(0, 2).toUpperCase()}

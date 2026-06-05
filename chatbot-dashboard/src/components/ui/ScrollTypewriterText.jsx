@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMobilePerformanceMode } from "../../hooks/useMobilePerformanceMode";
 import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
 import "./ScrollTypewriterText.css";
 
@@ -16,12 +17,19 @@ export function ScrollTypewriterText({
   const rootRef = useRef(null);
   const hasPlayedRef = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
-  const [isVisible, setIsVisible] = useState(reducedMotion);
+  const mobilePerformanceMode = useMobilePerformanceMode();
+  const motionDisabled = reducedMotion || mobilePerformanceMode;
+  const [isVisible, setIsVisible] = useState(motionDisabled);
   const words = useMemo(() => text.trim().split(/\s+/), [text]);
   const [lines, setLines] = useState([text]);
-  const [visibleCharacters, setVisibleCharacters] = useState(reducedMotion ? [text.length] : [0]);
+  const [visibleCharacters, setVisibleCharacters] = useState(motionDisabled ? [text.length] : [0]);
 
   useLayoutEffect(() => {
+    if (motionDisabled) {
+      setLines([text]);
+      return undefined;
+    }
+
     const node = rootRef.current;
     if (!node) return undefined;
 
@@ -75,10 +83,10 @@ export function ScrollTypewriterText({
       window.cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
     };
-  }, [text]);
+  }, [motionDisabled, text]);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (motionDisabled) {
       hasPlayedRef.current = true;
       setIsVisible(true);
       return undefined;
@@ -106,10 +114,10 @@ export function ScrollTypewriterText({
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [once, reducedMotion]);
+  }, [motionDisabled, once]);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (motionDisabled) {
       setVisibleCharacters(lines.map((line) => line.length));
       return undefined;
     }
@@ -119,6 +127,9 @@ export function ScrollTypewriterText({
       return undefined;
     }
 
+    // The typewriter updates text progressively with rAF on desktop. On mobile
+    // performance mode this branch is skipped so scroll does not compete with
+    // repeated React renders while the user is moving through the landing page.
     let frameId;
     const startedAt = window.performance.now();
     const lineStagger = Math.max(160, Math.min(260, speed * 8));
@@ -142,7 +153,7 @@ export function ScrollTypewriterText({
 
     frameId = window.requestAnimationFrame(typeLines);
     return () => window.cancelAnimationFrame(frameId);
-  }, [delay, isVisible, lines, reducedMotion, speed]);
+  }, [delay, isVisible, lines, motionDisabled, speed]);
 
   const activeLineIndex = visibleCharacters.reduce(
     (activeIndex, count, index) =>
@@ -162,8 +173,8 @@ export function ScrollTypewriterText({
       </span>
       <span className="scroll-typewriter-output" aria-hidden="true">
         {lines.map((line, index) => {
-          const visibleCount = reducedMotion ? line.length : (visibleCharacters[index] ?? 0);
-          const hasStarted = reducedMotion || visibleCount > 0;
+          const visibleCount = motionDisabled ? line.length : (visibleCharacters[index] ?? 0);
+          const hasStarted = motionDisabled || visibleCount > 0;
 
           return (
             <span

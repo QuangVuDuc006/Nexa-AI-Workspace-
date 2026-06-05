@@ -60,8 +60,12 @@ html {
 .topbar {
   transform-origin: top center;
   width: 100vw;
-  will-change: transform;
   transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.topbar-visible,
+.topbar-hidden {
+  will-change: transform;
 }
 
 .topbar-visible {
@@ -167,6 +171,17 @@ html {
   mask-image: linear-gradient(180deg, rgba(0,0,0,0.9), rgba(0,0,0,0.28));
 }
 
+.landing-background-field {
+  opacity: 1;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(141,77,232,0.16), transparent 28%),
+    radial-gradient(circle at 92% 4%, rgba(111,52,197,0.14), transparent 30%),
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,0.045), transparent 22%);
+  transform: translate3d(0, 0, 0) scale(1.04);
+  animation: landing-field-drift 32s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
+  will-change: transform, opacity;
+}
+
 .purple-sheen {
   background:
     radial-gradient(circle at 50% 100%, rgba(141, 77, 232, 0.2), transparent 46%),
@@ -215,11 +230,23 @@ html {
 
 @keyframes platform-ticker-scroll {
   from {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 
   to {
-    transform: translateX(calc(-50% - 0.375rem));
+    transform: translate3d(calc(-50% - 0.375rem), 0, 0);
+  }
+}
+
+@keyframes landing-field-drift {
+  from {
+    opacity: 0.92;
+    transform: translate3d(-1.5%, -1%, 0) scale(1.04);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(1.5%, 1%, 0) scale(1.06);
   }
 }
 
@@ -243,9 +270,84 @@ html {
   }
 }
 
+@media (max-width: 767px) {
+  :root {
+    --landing-section-y: 1.6rem;
+    --landing-section-y-compact: 1.5rem;
+    --landing-section-header-gap: 1.6rem;
+    --landing-content-stack-gap: 2.2rem;
+  }
+
+  .topbar {
+    transition-duration: 260ms;
+  }
+
+  .topbar-surface {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  }
+
+  .topbar-surface::before {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background:
+      linear-gradient(180deg, rgba(13, 8, 22, 0.96), rgba(8, 5, 14, 0.94)),
+      radial-gradient(circle at 50% -85%, rgba(184, 135, 255, 0.12), transparent 70%);
+  }
+
+  .noise-overlay {
+    opacity: 0.025;
+    mix-blend-mode: normal;
+    mask-image: none;
+  }
+
+  .landing-background-field {
+    opacity: 0.72;
+    animation: none;
+    transform: translate3d(0, 0, 0) scale(1);
+    will-change: auto;
+  }
+
+  .platform-ticker {
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+
+  .platform-ticker-track {
+    animation-duration: 46s;
+    will-change: transform;
+  }
+
+  .shadow-glow,
+  .shadow-purple,
+  .shadow-card,
+  .shadow-soft {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24) !important;
+  }
+
+  .blur-2xl,
+  .blur-3xl {
+    filter: none !important;
+  }
+
+  .bg-card-glow {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012)) !important;
+  }
+
+  .transition-all {
+    transition-property: transform, opacity, background-color, border-color, color !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .topbar {
     transition: none;
+  }
+
+  .landing-background-field,
+  .platform-ticker-track {
+    animation: none !important;
+    will-change: auto;
+    transform: translate3d(0, 0, 0);
   }
 
   *,

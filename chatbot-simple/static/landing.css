@@ -1698,6 +1698,61 @@ html[data-theme="light"] .auth-error {
     }
 }
 
+@media (max-width: 767px) {
+    .page-gradient {
+        opacity: 0.72;
+        filter: none;
+        animation: none;
+        background-size: auto;
+    }
+
+    body::before {
+        opacity: 0.22;
+        mask-image: none;
+    }
+
+    .site-nav {
+        transition:
+            background-color 220ms var(--ease),
+            border-color 220ms var(--ease),
+            transform 220ms var(--ease);
+    }
+
+    .site-nav.is-scrolled,
+    .preview-callout,
+    .auth-card {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    .site-nav.is-scrolled,
+    .preview-shell,
+    .preview-note,
+    .feature-card:hover,
+    .workflow-step:hover,
+    .benefits-panel,
+    .final-cta,
+    .auth-card {
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+    }
+
+    .preview-image {
+        filter: none;
+    }
+
+    .floating-preview {
+        animation: none;
+        will-change: auto;
+    }
+
+    .feature-card,
+    .workflow-step,
+    .button,
+    .button-icon {
+        transition-property: transform, background-color, border-color, color;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

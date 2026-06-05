@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo, useMemo } from "react";
 import { Bot, Boxes, BrainCircuit, Cable, Cloud, Cpu, KeyRound, Network, Orbit, Server } from "lucide-react";
 
 const defaultItems = [
@@ -24,8 +24,8 @@ export const providerTickerItems = [
   { label: "Bring Your Own API Key", icon: KeyRound },
 ];
 
-export function PlatformTicker({ items = defaultItems, className = "", reverse = false, label = "AI models" }) {
-  const tickerItems = [...items, ...items];
+function PlatformTickerBase({ items = defaultItems, className = "", reverse = false, label = "AI models" }) {
+  const tickerItems = useMemo(() => [...items, ...items], [items]);
 
   return (
     <div className={`platform-ticker relative w-full overflow-hidden ${className}`} aria-label={label}>
@@ -49,3 +49,5 @@ export function PlatformTicker({ items = defaultItems, className = "", reverse =
     </div>
   );
 }
+
+export const PlatformTicker = memo(PlatformTickerBase);

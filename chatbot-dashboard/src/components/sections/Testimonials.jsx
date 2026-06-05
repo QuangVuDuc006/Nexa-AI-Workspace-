@@ -31,7 +31,7 @@ export function Testimonials() {
             </div>
             <p className="text-lg font-semibold leading-7 tracking-[-0.025em] text-mist-100">"{item.quote}"</p>
             <div className="mt-6 flex items-center gap-4">
-              <img className="h-12 w-12 rounded-full object-cover" src={item.avatar} alt={item.name} />
+              <img className="h-12 w-12 rounded-full object-cover" src={item.avatar} alt={item.name} loading="lazy" decoding="async" />
               <div>
                 <p className="font-semibold text-white">{item.name}</p>
                 <p className="text-xs font-medium text-mist-300">{item.role}</p>

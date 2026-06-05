@@ -171,28 +171,28 @@ export const testimonials = [
   {
     name: "Maya Chen",
     role: "Product developer",
-    avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=96&q=80",
+    avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&fm=webp&w=96&q=76",
     quote:
       "I can use a fast model for drafts, then switch to a stronger reasoning model without opening another provider dashboard.",
   },
   {
     name: "Sophia Martinez",
     role: "Graduate student",
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=96&q=80",
+    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&fm=webp&w=96&q=76",
     quote:
       "I already had Gemini and OpenRouter keys. Connecting both and seeing the active model in the top bar makes the setup easy to understand.",
   },
   {
     name: "David Reynolds",
     role: "API power user",
-    avatar: "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=96&q=80",
+    avatar: "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&fm=webp&w=96&q=76",
     quote:
       "Model detection saves time, and manual model entry means custom endpoints are still usable when a provider does not expose a model list.",
   },
   {
     name: "Emily Wong",
     role: "Content writer",
-    avatar: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&w=96&q=80",
+    avatar: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&fm=webp&w=96&q=76",
     quote:
       "I switch between providers based on tone, speed, and cost while keeping all of my chats in one familiar interface.",
   },
