@@ -273,6 +273,36 @@ svg {
     background: var(--primary-hot);
 }
 
+.message ::selection,
+.message-content ::selection,
+.message-attachments ::selection,
+.message-file-list ::selection,
+.message-text ::selection,
+.thinking-text::selection,
+.message-content pre ::selection,
+.message-content code ::selection,
+textarea::selection,
+input::selection {
+    color: #ffffff;
+    background: rgba(96, 165, 250, 0.52);
+    -webkit-text-fill-color: #ffffff;
+}
+
+html[data-theme="light"] .message ::selection,
+html[data-theme="light"] .message-content ::selection,
+html[data-theme="light"] .message-attachments ::selection,
+html[data-theme="light"] .message-file-list ::selection,
+html[data-theme="light"] .message-text ::selection,
+html[data-theme="light"] .thinking-text::selection,
+html[data-theme="light"] .message-content pre ::selection,
+html[data-theme="light"] .message-content code ::selection,
+html[data-theme="light"] textarea::selection,
+html[data-theme="light"] input::selection {
+    color: #111827;
+    background: rgba(37, 99, 235, 0.28);
+    -webkit-text-fill-color: #111827;
+}
+
 :focus-visible {
     outline: 3px solid var(--focus-ring);
     outline-offset: 2px;
@@ -1259,6 +1289,7 @@ body.home-empty .chat-thread {
     max-width: min(660px, calc(100% - 46px));
     justify-items: end;
     order: 1;
+    gap: 7px;
 }
 
 .user-message .message-avatar {
@@ -1278,9 +1309,16 @@ body.home-empty .chat-thread {
 }
 
 .ai-avatar {
-    color: #050505;
-    background: #ffffff;
-    box-shadow: 0 8px 22px rgba(255, 255, 255, 0.1);
+    color: inherit;
+    background: transparent;
+    box-shadow: none;
+}
+
+.assistant-avatar img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
 }
 
 .user-avatar {
@@ -1345,6 +1383,30 @@ body.home-empty .chat-thread {
     box-shadow: 0 8px 24px rgba(255, 255, 255, 0.1);
 }
 
+.user-message .attachment-bubble {
+    width: fit-content;
+    max-width: min(560px, 100%);
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+    box-shadow: none;
+}
+
+.user-message .text-bubble {
+    width: fit-content;
+    max-width: min(520px, 100%);
+    padding: 13px 18px;
+    border-radius: 22px;
+    color: #ffffff;
+    background: #2f2f31;
+    box-shadow: none;
+}
+
+html[data-theme="light"] .user-message .text-bubble {
+    color: #111111;
+    background: #eeeeef;
+}
+
 .message-content {
     min-width: 0;
 }
@@ -1359,6 +1421,17 @@ body.home-empty .chat-thread {
 
 .message-content p {
     max-width: 68ch;
+}
+
+.message-content .streaming-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.message-text {
+    min-width: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .message-content h1,
@@ -1548,6 +1621,11 @@ body.home-empty .chat-thread {
     width: min(380px, 100%);
 }
 
+.user-message .message-image-grid,
+.user-message .message-image-grid.image-count-1 {
+    width: min(560px, 100%);
+}
+
 .message-image-trigger {
     min-width: 0;
     width: 100%;
@@ -1571,12 +1649,24 @@ body.home-empty .chat-thread {
     transform: scale(0.99);
 }
 
+.user-message .message-image-trigger {
+    border-color: rgba(255, 255, 255, 0.16);
+    border-radius: 30px;
+    background: transparent;
+}
+
 .message-inline-image {
     display: block;
     width: 100%;
     max-height: min(340px, 48vh);
     object-fit: contain;
     border-radius: inherit;
+}
+
+.user-message .message-inline-image {
+    max-height: min(330px, 44vh);
+    object-fit: contain;
+    background: #ffffff;
 }
 
 .message-image-grid.image-count-2 .message-inline-image,
@@ -1589,8 +1679,25 @@ body.home-empty .chat-thread {
 
 .message-attachments {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    max-width: 100%;
+}
+
+.message-attachments:empty {
+    display: none;
+}
+
+.message-content > .message-attachments + * {
+    margin-top: 8px;
+}
+
+.message-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: min(280px, 100%);
 }
 
 .attachment-pill,
@@ -1604,6 +1711,16 @@ body.home-empty .chat-thread {
     background: var(--surface-low);
     font-size: 0.76rem;
     font-weight: 650;
+}
+
+.user-message .attachment-pill {
+    color: #252525;
+    border-color: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.045);
+}
+
+.user-message .attachment-pill small {
+    color: rgba(5, 5, 5, 0.62);
 }
 
 .attachment-pill span,
@@ -1649,15 +1766,69 @@ body.home-empty .chat-thread {
     padding: 6px;
 }
 
+.composer .attachment-chip {
+    position: relative;
+    max-width: 220px;
+    min-height: 58px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 9px;
+    border-color: var(--line-strong);
+    border-radius: var(--radius-md);
+    color: var(--text-soft);
+    background: var(--surface-low);
+}
+
+.composer .attachment-chip.image-chip {
+    width: 156px;
+    min-height: 116px;
+    max-width: 156px;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 6px;
+    padding: 7px;
+}
+
 .attachment-chip.image-chip .attachment-image-trigger {
     width: 64px;
     height: 48px;
+}
+
+.composer .attachment-chip.image-chip .attachment-image-trigger {
+    width: 100%;
+    height: 86px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.2);
 }
 
 .attachment-preview {
     width: 64px;
     height: 48px;
     max-height: 48px;
+}
+
+.composer .attachment-preview {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: inherit;
+    object-fit: cover;
+}
+
+.composer .attachment-chip.image-chip > span,
+.composer .attachment-chip.image-chip > small {
+    max-width: calc(100% - 28px);
+}
+
+.composer .attachment-chip.image-chip > span {
+    font-size: 0.72rem;
+}
+
+.composer .attachment-chip.image-chip > small {
+    font-size: 0.66rem;
 }
 
 .attachment-pill.image-pill {
@@ -1683,6 +1854,15 @@ body.home-empty .chat-thread {
     border-radius: 999px;
     color: var(--muted);
     background: transparent;
+}
+
+.composer .attachment-chip button:not(.attachment-image-trigger) {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
 }
 
 .attachment-chip button:not(.attachment-image-trigger):hover {
@@ -1785,6 +1965,37 @@ body.home-empty .chat-thread {
     font-weight: 650;
 }
 
+.thinking-text {
+    display: inline-block;
+    font-weight: 750;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.34),
+            rgba(255, 255, 255, 1),
+            rgba(255, 255, 255, 0.34)
+        );
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: thinking-shimmer 1.3s linear infinite;
+}
+
+html[data-theme="light"] .thinking-text {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(17, 24, 39, 0.36),
+            rgba(17, 24, 39, 0.96),
+            rgba(17, 24, 39, 0.36)
+        );
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+}
+
 .typing-dots {
     display: inline-flex;
     gap: 4px;
@@ -1842,10 +2053,15 @@ body.home-empty .composer {
 }
 
 .attachment-tray {
+    width: 100%;
+    max-width: 100%;
     display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    padding: 2px 4px 0;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 4px 5px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
 }
 
 .composer-row {
@@ -2134,25 +2350,45 @@ body.home-empty .composer {
 }
 
 .image-preview-panel {
-    width: min(920px, calc(100vw - 36px));
+    position: relative;
+    width: auto;
+    max-width: calc(100vw - 36px);
+    max-height: calc(100dvh - 36px);
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    box-shadow: none;
+}
+
+.image-preview-header {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+}
+
+.image-preview-close-button {
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(10px);
+}
+
+.image-preview-close-button:hover {
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.72);
 }
 
 .image-preview-large {
     display: block;
-    width: 100%;
-    max-height: min(680px, calc(100dvh - 210px));
+    width: auto;
+    max-width: calc(100vw - 36px);
+    max-height: calc(100dvh - 36px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: rgba(0, 0, 0, 0.28);
     object-fit: contain;
-}
-
-.image-preview-meta {
-    margin: 10px 0 0;
-    color: var(--muted);
-    font-size: 0.82rem;
-    font-weight: 650;
-    overflow-wrap: anywhere;
 }
 
 .dialog-header {
@@ -2807,6 +3043,15 @@ body.home-empty .composer {
     }
 }
 
+@keyframes thinking-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
+}
+
 @media (max-width: 640px) {
     .topbar {
         min-height: 54px;
@@ -2869,11 +3114,37 @@ body.home-empty .composer {
         max-width: calc(100% - 38px);
     }
 
+    .user-message .attachment-bubble,
+    .user-message .text-bubble {
+        max-width: 100%;
+    }
+
+    .user-message .message-image-trigger {
+        border-radius: 24px;
+    }
+
     .attachment-chip.image-chip .attachment-image-trigger,
     .attachment-preview {
         width: 54px;
         height: 42px;
         max-height: 42px;
+    }
+
+    .composer .attachment-chip.image-chip {
+        width: 132px;
+        min-height: 104px;
+        max-width: 132px;
+    }
+
+    .composer .attachment-chip.image-chip .attachment-image-trigger {
+        width: 100%;
+        height: 76px;
+    }
+
+    .composer .attachment-preview {
+        width: 100%;
+        height: 100%;
+        max-height: none;
     }
 
     .attachment-pill.image-pill .attachment-image-trigger,

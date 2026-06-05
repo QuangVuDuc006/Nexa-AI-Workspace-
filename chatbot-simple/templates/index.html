@@ -27,7 +27,7 @@
             document.documentElement.dataset.theme = theme;
         }());
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=image-preview-1">
 </head>
 <body
     data-user-id="{{ current_user.id if current_user else 'guest' }}"
@@ -300,18 +300,13 @@
     </section>
 
     <section class="dialog-layer image-preview-dialog" aria-hidden="true">
-        <div class="dialog-panel image-preview-panel" role="dialog" aria-modal="true" aria-labelledby="imagePreviewTitle">
-            <header class="dialog-header">
-                <div>
-                    <span class="meta-label">Attachment</span>
-                    <h2 id="imagePreviewTitle" class="image-preview-title">Image preview</h2>
-                </div>
+        <div class="dialog-panel image-preview-panel" role="dialog" aria-modal="true" aria-label="Image preview">
+            <header class="image-preview-header">
                 <button class="icon-button image-preview-close-button" type="button" aria-label="Close image preview">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </header>
             <img class="image-preview-large" alt="">
-            <p class="image-preview-meta"></p>
         </div>
     </section>
 
@@ -319,7 +314,7 @@
 
     <script src="{{ url_for('static', filename='frontend/api/client.js') }}" defer></script>
     <script src="{{ url_for('static', filename='frontend/uploads/files.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='chat.js') }}?v=math-render-3" defer></script>
+    <script src="{{ url_for('static', filename='chat.js') }}?v=image-preview-1" defer></script>
     <script type="module" src="{{ url_for('static', filename='firebase-auth.js') }}"></script>
 </body>
 </html>

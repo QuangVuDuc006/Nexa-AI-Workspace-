@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const MIGRATION_KEY = `workspace_migrated_${USER_STORAGE_ID}`;
     const MAX_ATTACHMENTS = 4;
     const MAX_ATTACHMENT_BYTES = 12 * 1024 * 1024;
+    const STREAM_RENDER_INTERVAL_MS = 120;
     const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"]);
     const TEXT_EXTENSIONS = new Set(["txt", "md", "pdf", "docx"]);
     const WELCOME_PROMPTS = [
@@ -86,9 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmAcceptButton: document.querySelector(".confirm-accept-button"),
         imagePreviewDialog: document.querySelector(".image-preview-dialog"),
         imagePreviewCloseButton: document.querySelector(".image-preview-close-button"),
-        imagePreviewTitle: document.querySelector(".image-preview-title"),
         imagePreviewLarge: document.querySelector(".image-preview-large"),
-        imagePreviewMeta: document.querySelector(".image-preview-meta"),
         clearHistoryButton: document.querySelector(".clear-history-button"),
         toastRegion: document.querySelector(".toast-region"),
     };
@@ -123,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let openMenuId = null;
     let renameTargetId = null;
     let confirmCallback = null;
-    let renderQueued = false;
+    let streamingRenderState = null;
     let preferencesSaveTimer = null;
     let welcomePromptIndex = Math.floor(Math.random() * WELCOME_PROMPTS.length);
 
@@ -1248,7 +1247,7 @@ document.addEventListener("DOMContentLoaded", () => {
         els.attachmentTray.textContent = "";
 
         pendingAttachments.forEach((attachment) => {
-            const chip = document.createElement("span");
+            const chip = document.createElement("div");
             chip.className = `attachment-chip ${attachment.kind === "image" ? "image-chip" : ""}`;
             chip.dataset.attachmentId = attachment.id;
 
@@ -1290,7 +1289,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         if (isProcessingAttachment) {
-            const chip = document.createElement("span");
+            const chip = document.createElement("div");
             chip.className = "attachment-chip processing-chip";
             chip.innerHTML = `
                 <span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
@@ -1702,38 +1701,55 @@ document.addEventListener("DOMContentLoaded", () => {
         return result;
     }
 
-    function renderSanitizedMarkdown(fragment, text) {
+    function buildSanitizedMarkdownContent(text) {
         if (!window.marked || !window.DOMPurify) {
+            return null;
+        }
+
+        try {
+            window.marked.setOptions({
+                breaks: true,
+                gfm: true,
+            });
+
+            const normalizedText = normalizeMathContent(String(text || ""));
+            const protectedMarkdown = protectMathInMarkdown(normalizedText);
+            const rawHtml = window.marked.parse(protectedMarkdown.markdown);
+            const cleanHtml = window.DOMPurify.sanitize(rawHtml, {
+                USE_PROFILES: { html: true },
+                ADD_ATTR: ["target", "rel"],
+            });
+            const template = document.createElement("template");
+            template.innerHTML = cleanHtml;
+
+            template.content.querySelectorAll("a[href]").forEach((link) => {
+                if (!isSafeMarkdownLink(link.getAttribute("href"))) {
+                    link.removeAttribute("href");
+                    return;
+                }
+
+                link.target = "_blank";
+                link.rel = "noreferrer";
+            });
+
+            restoreMathPlaceholders(template.content, protectedMarkdown.tokens);
+            return {
+                fragment: template.content,
+                html: cleanHtml,
+            };
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function renderSanitizedMarkdown(fragment, text) {
+        const rendered = buildSanitizedMarkdownContent(text);
+
+        if (!rendered) {
             return false;
         }
 
-        window.marked.setOptions({
-            breaks: true,
-            gfm: true,
-        });
-
-        const normalizedText = normalizeMathContent(String(text || ""));
-        const protectedMarkdown = protectMathInMarkdown(normalizedText);
-        const rawHtml = window.marked.parse(protectedMarkdown.markdown);
-        const cleanHtml = window.DOMPurify.sanitize(rawHtml, {
-            USE_PROFILES: { html: true },
-            ADD_ATTR: ["target", "rel"],
-        });
-        const template = document.createElement("template");
-        template.innerHTML = cleanHtml;
-
-        template.content.querySelectorAll("a[href]").forEach((link) => {
-            if (!isSafeMarkdownLink(link.getAttribute("href"))) {
-                link.removeAttribute("href");
-                return;
-            }
-
-            link.target = "_blank";
-            link.rel = "noreferrer";
-        });
-
-        restoreMathPlaceholders(template.content, protectedMarkdown.tokens);
-        fragment.appendChild(template.content);
+        fragment.appendChild(rendered.fragment);
         return true;
     }
 
@@ -2050,14 +2066,10 @@ document.addEventListener("DOMContentLoaded", () => {
     function createTypingIndicator() {
         const wrapper = document.createElement("div");
         wrapper.className = "typing-indicator";
-        wrapper.innerHTML = `
-            <span>Thinking...</span>
-            <span class="typing-dots" aria-hidden="true">
-                <span></span>
-                <span></span>
-                <span></span>
-            </span>
-        `;
+        const label = document.createElement("span");
+        label.className = "thinking-text";
+        label.textContent = "Thinking";
+        wrapper.appendChild(label);
         return wrapper;
     }
 
@@ -2094,7 +2106,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function createAttachmentPills(attachments) {
         const container = document.createElement("div");
-        container.className = "message-attachments";
+        container.className = "message-file-list";
 
         attachments.forEach((attachment) => {
             const pill = document.createElement("span");
@@ -2113,6 +2125,21 @@ document.addEventListener("DOMContentLoaded", () => {
             pill.appendChild(size);
             container.appendChild(pill);
         });
+
+        return container;
+    }
+
+    function createUserMessageAttachments(imageAttachments, fileAttachments) {
+        const container = document.createElement("div");
+        container.className = "message-attachments";
+
+        if (imageAttachments.length) {
+            container.appendChild(createMessageImageGrid(imageAttachments));
+        }
+
+        if (fileAttachments.length) {
+            container.appendChild(createAttachmentPills(fileAttachments));
+        }
 
         return container;
     }
@@ -2162,9 +2189,18 @@ document.addEventListener("DOMContentLoaded", () => {
         row.dataset.messageId = message.id;
 
         const avatar = document.createElement("span");
-        avatar.className = `message-avatar ${message.role === "ai" ? "ai-avatar" : "user-avatar"}`;
+        avatar.className = `message-avatar ${message.role === "ai" ? "ai-avatar assistant-avatar" : "user-avatar"}`;
         avatar.setAttribute("aria-hidden", "true");
-        avatar.innerHTML = message.role === "ai" ? '<i data-lucide="sparkles"></i>' : '<i data-lucide="user-round"></i>';
+
+        if (message.role === "ai") {
+            const assistantLogo = document.createElement("img");
+            assistantLogo.src = "/static/assets/Hover.png";
+            assistantLogo.alt = "";
+            assistantLogo.loading = "eager";
+            avatar.appendChild(assistantLogo);
+        } else {
+            avatar.innerHTML = '<i data-lucide="user-round"></i>';
+        }
 
         const shell = document.createElement("div");
         shell.className = "message-shell";
@@ -2182,39 +2218,60 @@ document.addEventListener("DOMContentLoaded", () => {
             meta.textContent = "You";
         }
 
-        const bubble = document.createElement("div");
-        bubble.className = "message-bubble";
-
-        const content = document.createElement("div");
-        content.className = "message-content";
-
-        if (message.role === "user" && imageAttachments.length) {
-            content.appendChild(createMessageImageGrid(imageAttachments));
-        }
-
-        if (message.isLoading && !message.text) {
-            content.appendChild(createTypingIndicator());
-        } else {
-            content.appendChild(renderMessageContent(message.text, message.isError, {
-                markdown: message.role === "ai",
-            }));
-
-            if (!message.isError) {
-                renderKatexMathInElement(content);
-            }
-        }
-
-        bubble.appendChild(content);
-
         if (meta.textContent.trim()) {
             shell.appendChild(meta);
         }
 
-        if (fileAttachments.length) {
+        if (message.role !== "user" && fileAttachments.length) {
             shell.appendChild(createAttachmentPills(fileAttachments));
         }
 
-        shell.appendChild(bubble);
+        if (message.role === "user") {
+            if (imageAttachments.length || fileAttachments.length) {
+                const attachmentBubble = document.createElement("div");
+                attachmentBubble.className = "message-bubble attachment-bubble";
+                attachmentBubble.appendChild(createUserMessageAttachments(imageAttachments, fileAttachments));
+                shell.appendChild(attachmentBubble);
+            }
+
+            if (String(message.text || "").trim() || message.isError) {
+                const textBubble = document.createElement("div");
+                textBubble.className = "message-bubble text-bubble";
+                const textContent = document.createElement("div");
+                textContent.className = "message-content message-text";
+                textContent.appendChild(renderMessageContent(message.text, message.isError, {
+                    markdown: false,
+                }));
+
+                if (!message.isError) {
+                    renderKatexMathInElement(textContent);
+                }
+
+                textBubble.appendChild(textContent);
+                shell.appendChild(textBubble);
+            }
+        } else {
+            const bubble = document.createElement("div");
+            bubble.className = "message-bubble";
+
+            const content = document.createElement("div");
+            content.className = "message-content";
+
+            if (message.isLoading && !message.text) {
+                content.appendChild(createTypingIndicator());
+            } else {
+                content.appendChild(renderMessageContent(message.text, message.isError, {
+                    markdown: true,
+                }));
+
+                if (!message.isError) {
+                    renderKatexMathInElement(content);
+                }
+            }
+
+            bubble.appendChild(content);
+            shell.appendChild(bubble);
+        }
 
         if (message.role === "ai" && !message.isLoading && message.text) {
             shell.appendChild(createResponseFooter(message));
@@ -2281,6 +2338,66 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function getRenderedMessageElement(messageId) {
+        if (!messageId) {
+            return null;
+        }
+
+        return els.chatThread.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
+    }
+
+    function getRenderedMessageContent(messageId) {
+        return getRenderedMessageElement(messageId)?.querySelector(".message-content") || null;
+    }
+
+    function ensureAssistantMeta(row, message) {
+        if (!row || message.role !== "ai") {
+            return;
+        }
+
+        const shell = row.querySelector(".message-shell");
+        const bubble = row.querySelector(".message-bubble");
+
+        if (!shell || !bubble) {
+            return;
+        }
+
+        let meta = shell.querySelector(".message-meta");
+        const html = `
+            ${message.isError ? '<span class="status-chip error">error</span>' : ""}
+            ${message.isStopped ? '<span class="status-chip stopped">stopped</span>' : ""}
+        `.trim();
+
+        if (!html) {
+            meta?.remove();
+            return;
+        }
+
+        if (!meta) {
+            meta = document.createElement("div");
+            meta.className = "message-meta";
+            shell.insertBefore(meta, bubble);
+        }
+
+        meta.innerHTML = html;
+    }
+
+    function appendResponseFooterIfNeeded(message) {
+        if (message.role !== "ai" || message.isLoading || !message.text || message.isError) {
+            return;
+        }
+
+        const row = getRenderedMessageElement(message.id);
+        const shell = row?.querySelector(".message-shell");
+
+        if (!shell || shell.querySelector(".response-footer")) {
+            return;
+        }
+
+        shell.appendChild(createResponseFooter(message));
+        renderIcons();
+    }
+
     function renderApp(options = {}) {
         applyTheme();
         renderSidebar();
@@ -2293,24 +2410,176 @@ document.addEventListener("DOMContentLoaded", () => {
         renderIcons();
     }
 
-    function renderStreamingUpdate() {
-        if (renderQueued) {
+    function renderAppChromeOnly() {
+        applyTheme();
+        renderSidebar();
+        renderTopbar();
+        renderControls();
+        renderAttachmentTray();
+        syncComposerState();
+        saveState();
+        renderIcons();
+    }
+
+    function beginStreamingRender(message) {
+        let content = getRenderedMessageContent(message.id);
+
+        if (!content) {
+            renderChat({ forceScroll: true });
+            content = getRenderedMessageContent(message.id);
+        }
+
+        if (!content) {
+            streamingRenderState = null;
             return;
         }
 
-        renderQueued = true;
-        requestAnimationFrame(() => {
-            renderQueued = false;
-            const assistantMessage = currentAssistantId ? getMessageById(currentAssistantId) : null;
+        streamingRenderState = {
+            messageId: message.id,
+            content,
+            textNode: null,
+            text: message.text || "",
+            renderTimerId: null,
+            lastRenderTime: 0,
+            lastRenderedHtml: "",
+        };
 
-            if (assistantMessage) {
-                updateRenderedMessage(assistantMessage, { forceScroll: true });
-            } else {
-                renderChat({ forceScroll: true });
-            }
-            renderIcons();
-            renderAllAssistantMath();
-        });
+        if (message.text) {
+            renderStreamingMarkdownContent(streamingRenderState, true);
+        }
+    }
+
+    function createStreamingTextNode(state) {
+        const textNode = document.createTextNode(state.text);
+        const paragraph = document.createElement("p");
+        paragraph.className = "streaming-text";
+        paragraph.appendChild(textNode);
+        state.content.replaceChildren(paragraph);
+        state.textNode = textNode;
+    }
+
+    function renderStreamingPlainText(state) {
+        if (!state.textNode) {
+            createStreamingTextNode(state);
+            return;
+        }
+
+        state.textNode.textContent = state.text;
+    }
+
+    function renderStreamingMarkdownContent(state, force = false) {
+        const rendered = buildSanitizedMarkdownContent(state.text);
+
+        if (!rendered) {
+            renderStreamingPlainText(state);
+            return;
+        }
+
+        if (!force && rendered.html === state.lastRenderedHtml) {
+            return;
+        }
+
+        state.content.replaceChildren(rendered.fragment);
+        state.textNode = null;
+        state.lastRenderedHtml = rendered.html;
+
+        try {
+            renderKatexMathInElement(state.content);
+        } catch (error) {
+            renderStreamingPlainText(state);
+        }
+    }
+
+    function retargetStreamingRender(oldMessageId, newMessageId) {
+        if (!oldMessageId || !newMessageId || oldMessageId === newMessageId) {
+            return;
+        }
+
+        const row = getRenderedMessageElement(oldMessageId);
+
+        if (row) {
+            row.dataset.messageId = newMessageId;
+        }
+
+        if (streamingRenderState?.messageId === oldMessageId) {
+            streamingRenderState.messageId = newMessageId;
+        }
+    }
+
+    function flushStreamingMarkdown() {
+        const state = streamingRenderState;
+
+        if (!state) {
+            return;
+        }
+
+        state.renderTimerId = null;
+        renderStreamingMarkdownContent(state);
+        state.lastRenderTime = performance.now();
+
+        if (shouldAutoScroll()) {
+            scrollMessagesToBottom();
+        }
+    }
+
+    function shouldAutoScroll() {
+        return state.settings.autoScroll && isNearBottom();
+    }
+
+    function appendStreamingChunk(message, chunk) {
+        if (!streamingRenderState || streamingRenderState.messageId !== message.id) {
+            beginStreamingRender(message);
+        }
+
+        if (!streamingRenderState) {
+            return;
+        }
+
+        streamingRenderState.text += chunk;
+
+        // Streaming can produce many tiny tokens. Buffering them and rendering
+        // Markdown on a short throttle keeps formatting progressive while the
+        // existing bubble/avatar stay mounted, preventing the old flicker.
+        if (streamingRenderState.renderTimerId === null) {
+            const elapsed = performance.now() - streamingRenderState.lastRenderTime;
+            const delay = Math.max(0, STREAM_RENDER_INTERVAL_MS - elapsed);
+            streamingRenderState.renderTimerId = window.setTimeout(() => {
+                requestAnimationFrame(flushStreamingMarkdown);
+            }, delay);
+        }
+    }
+
+    function finalizeStreamingRender(message, options = {}) {
+        const state = streamingRenderState;
+
+        if (state?.renderTimerId !== null) {
+            window.clearTimeout(state.renderTimerId);
+        }
+
+        const content = getRenderedMessageContent(message.id) || state?.content;
+
+        if (!content) {
+            updateRenderedMessage(message, options);
+            streamingRenderState = null;
+            return;
+        }
+
+        content.replaceChildren(renderMessageContent(message.text, message.isError, {
+            markdown: message.role === "ai",
+        }));
+
+        if (!message.isError) {
+            renderKatexMathInElement(content);
+        }
+
+        const row = getRenderedMessageElement(message.id);
+        ensureAssistantMeta(row, message);
+        appendResponseFooterIfNeeded(message);
+        streamingRenderState = null;
+
+        if (options.forceScroll || shouldAutoScroll()) {
+            requestAnimationFrame(scrollMessagesToBottom);
+        }
     }
 
     function setLoading(isLoading, assistantId = null) {
@@ -2400,10 +2669,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         setLoading(true, assistantMessage.id);
         renderApp({ forceScroll });
+        beginStreamingRender(assistantMessage);
 
         try {
             await streamAIResponse(payload, (event) => {
                 if (event.type === "meta") {
+                    const previousAssistantId = assistantMessage.id;
                     assistantMessage.provider = event.provider || assistantMessage.provider || null;
                     assistantMessage.model = event.model || assistantMessage.model || null;
                     if (event.conversationId) {
@@ -2416,6 +2687,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (event.assistantMessageId) {
                         assistantMessage.id = event.assistantMessageId;
                         currentAssistantId = assistantMessage.id;
+                        retargetStreamingRender(previousAssistantId, assistantMessage.id);
                     }
                     if (event.conversation?.id) {
                         const normalized = normalizeConversation(event.conversation);
@@ -2435,7 +2707,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (event.type === "token" && event.text) {
                     assistantMessage.text += event.text;
                     assistantMessage.isLoading = false;
-                    renderStreamingUpdate();
+                    appendStreamingChunk(assistantMessage, event.text);
                     return;
                 }
 
@@ -2443,14 +2715,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     assistantMessage.provider = event.provider || assistantMessage.provider || null;
                     assistantMessage.model = event.model || assistantMessage.model || null;
                     assistantMessage.isLoading = false;
-                    updateRenderedMessage(assistantMessage, { forceScroll: true });
-                    renderAllAssistantMath();
+                    finalizeStreamingRender(assistantMessage, { forceScroll: true });
                 }
             });
 
             if (!assistantMessage.text.trim()) {
                 assistantMessage.text = "The AI service did not return a response. Please try again.";
                 assistantMessage.isError = true;
+                finalizeStreamingRender(assistantMessage, { forceScroll: true });
             }
         } catch (error) {
             if (error.name === "AbortError") {
@@ -2462,13 +2734,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 assistantMessage.isError = true;
                 showToast(assistantMessage.text, "error");
             }
+            finalizeStreamingRender(assistantMessage, { forceScroll: true });
         } finally {
             assistantMessage.isLoading = false;
             abortController = null;
             setLoading(false, null);
             getActiveConversation().updatedAt = Date.now();
-            renderApp({ forceScroll: true });
-            renderAllAssistantMath();
+            renderAppChromeOnly();
             els.messageInput.focus();
         }
     }
@@ -2824,17 +3096,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         openDialog(els.imagePreviewDialog, els.imagePreviewCloseButton);
 
-        if (els.imagePreviewTitle) {
-            els.imagePreviewTitle.textContent = attachment.name || "Image preview";
-        }
-
         if (els.imagePreviewLarge) {
             els.imagePreviewLarge.src = source;
             els.imagePreviewLarge.alt = attachment.name || "Attached image";
-        }
-
-        if (els.imagePreviewMeta) {
-            els.imagePreviewMeta.textContent = `${attachment.mimeType || attachment.mime_type || "image"} · ${formatBytes(Number(attachment.size) || 0)}`;
         }
     }
 
