@@ -161,6 +161,10 @@ export function ScrollTypewriterText({
     -1,
   );
 
+  if (motionDisabled) {
+    return <span className={className}>{text}</span>;
+  }
+
   return (
     <span ref={rootRef} className={`scroll-typewriter ${className}`} aria-label={text}>
       <span className="scroll-typewriter-reserve" aria-hidden="true">

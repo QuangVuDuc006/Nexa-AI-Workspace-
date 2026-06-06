@@ -3053,51 +3053,245 @@ body.home-empty .composer {
 }
 
 @media (max-width: 640px) {
+    html[data-theme],
+    html[data-theme="light"],
+    html[data-theme="dark"] {
+        --app-bg: #000000;
+        --surface: #000000;
+        --surface-low: rgba(255, 255, 255, 0.035);
+        --surface-muted: rgba(255, 255, 255, 0.07);
+        --surface-raised: rgba(255, 255, 255, 0.1);
+        --text: #f6f6f6;
+        --text-soft: rgba(255, 255, 255, 0.78);
+        --muted: rgba(255, 255, 255, 0.48);
+        --muted-strong: rgba(255, 255, 255, 0.66);
+        --sidebar: #000000;
+        --sidebar-deep: #000000;
+        --sidebar-text: #f6f6f6;
+        --sidebar-muted: rgba(255, 255, 255, 0.55);
+        --composer-bg: rgba(28, 28, 27, 0.96);
+        --composer-bg-focus: rgba(31, 31, 30, 0.98);
+        --send-bg: #102f8f;
+        --send-text: #ffffff;
+        --line: rgba(255, 255, 255, 0.08);
+        --line-strong: rgba(255, 255, 255, 0.13);
+    }
+
+    body {
+        background:
+            radial-gradient(ellipse at 50% 112%, rgba(24, 58, 155, 0.46), transparent 39%),
+            radial-gradient(ellipse at 84% 88%, rgba(9, 31, 92, 0.24), transparent 36%),
+            linear-gradient(180deg, #000000 0%, #000000 64%, #020613 100%);
+    }
+
+    body::before {
+        display: none;
+    }
+
+    .app-shell,
+    .workspace {
+        background: transparent;
+    }
+
     .topbar {
-        min-height: 54px;
+        min-height: 86px;
+        position: relative;
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr) 54px;
+        align-items: center;
+        gap: 10px;
+        padding: max(16px, env(safe-area-inset-top)) 22px 0;
+        background: transparent;
+        border: 0;
+    }
+
+    .topbar-left {
+        display: contents;
+    }
+
+    .mobile-menu-button {
+        width: 52px;
+        height: 52px;
+        grid-column: 1;
+        color: rgba(255, 255, 255, 0.88);
+        background: transparent;
+    }
+
+    .mobile-menu-button .material-symbols-outlined {
+        font-size: 31px;
+        font-weight: 300;
+    }
+
+    .conversation-meta {
+        min-width: 0;
+        grid-column: 2;
+        justify-items: center;
+        text-align: center;
+    }
+
+    .conversation-meta .meta-label {
+        display: none;
     }
 
     .active-title {
-        max-width: 18ch;
-        font-size: 1rem;
+        max-width: 100%;
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 0;
+        font-weight: 470;
+        letter-spacing: -0.055em;
+        line-height: 1;
+    }
+
+    .active-title::after {
+        content: "Nexa AI";
+        display: inline-flex;
+        align-items: center;
+        color: rgba(255, 255, 255, 0.86);
+        font-size: clamp(1.45rem, 7.1vw, 1.9rem);
+        font-weight: 430;
     }
 
     .topbar-actions {
-        width: 100%;
-        justify-content: flex-start;
-        gap: 4px;
+        width: auto;
+        grid-column: 3;
+        justify-content: end;
+        gap: 0;
+    }
+
+    .search-toggle-button,
+    .theme-toggle-button,
+    .settings-button,
+    .profile-chip {
+        display: none;
+    }
+
+    .rename-chat-button {
+        display: inline-grid;
+        width: 52px;
+        height: 52px;
+        color: rgba(255, 255, 255, 0.9);
+        background: transparent;
+    }
+
+    .rename-chat-button .material-symbols-outlined {
+        font-size: 28px;
+        font-weight: 300;
     }
 
     .active-model-switcher {
-        order: 5;
-        max-width: none;
-        flex: 1 1 100%;
+        min-width: 0;
     }
 
     .provider-field-grid {
         grid-template-columns: 1fr;
     }
 
-    .rename-chat-button {
-        display: none;
+    body.home-empty .messages {
+        padding: 0 24px;
+        overflow: hidden;
     }
 
     .empty-state {
-        min-height: 0;
-        padding-bottom: 178px;
+        min-height: calc(100dvh - 86px);
+        align-content: center;
+        padding: 0 0 150px;
+    }
+
+    .welcome-copy {
+        width: 100%;
+        max-width: 340px;
+        gap: 0;
+    }
+
+    .welcome-spark {
+        width: 42px;
+        height: 42px;
+        display: block;
+        margin: 0 auto 24px;
+        background: conic-gradient(from 0deg, #ff5a6f, #ffc642, #32d37f, #38a5ff, #9e65ff, #ff5a6f);
+        clip-path: polygon(50% 0%, 61% 36%, 100% 50%, 61% 64%, 50% 100%, 39% 64%, 0% 50%, 39% 36%);
+        filter: saturate(0.96) brightness(1.04);
     }
 
     .welcome-greeting {
-        font-size: 0.98rem;
+        display: none;
     }
 
     .welcome-prompt {
-        min-height: 7.4rem;
-        font-size: 2.58rem;
+        min-height: auto;
+        max-width: 335px;
+        color: rgba(255, 255, 255, 0.84);
+        font-size: clamp(2.72rem, 11.8vw, 3.7rem);
+        font-weight: 390;
+        letter-spacing: -0.07em;
+        line-height: 1.08;
     }
 
     .suggestions {
         grid-template-columns: 1fr;
+    }
+
+    .messages {
+        padding: 12px 14px 132px;
+        scrollbar-gutter: auto;
+    }
+
+    .chat-thread {
+        gap: 18px;
+    }
+
+    .composer {
+        position: fixed;
+        left: max(18px, env(safe-area-inset-left));
+        right: max(18px, env(safe-area-inset-right));
+        bottom: max(16px, env(safe-area-inset-bottom));
+        width: auto;
+        min-height: 78px;
+        display: block;
+        padding: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.055);
+        border-radius: 999px;
+        background: rgba(25, 25, 24, 0.96);
+        box-shadow:
+            0 18px 62px rgba(0, 0, 0, 0.58),
+            inset 0 1px 0 rgba(255, 255, 255, 0.045);
+        backdrop-filter: none;
+        transform: none;
+    }
+
+    body.home-empty .composer {
+        top: auto;
+        bottom: max(16px, env(safe-area-inset-bottom));
+        transform: none;
+    }
+
+    .composer-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr) 54px;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: nowrap;
+    }
+
+    .composer .icon-button,
+    .attach-button {
+        width: 48px;
+        height: 48px;
+        align-self: center;
+        margin: 0;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.78);
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .attach-button {
+        grid-column: 1;
+    }
+
+    .attach-button .material-symbols-outlined {
+        font-size: 31px;
+        font-weight: 300;
     }
 
     .message {
@@ -3173,18 +3367,296 @@ body.home-empty .composer {
     }
 
     .composer-row {
-        align-items: flex-end;
-        flex-wrap: wrap;
+        align-items: center;
+        flex-wrap: nowrap;
     }
 
     .message-input {
-        flex-basis: calc(100% - 98px);
-        min-height: 42px;
+        grid-column: 2;
+        min-height: 48px;
+        max-height: 112px;
+        flex-basis: auto;
+        padding: 12px 6px;
+        color: rgba(255, 255, 255, 0.88);
+        font-size: clamp(1.18rem, 5.5vw, 1.58rem);
+        font-weight: 400;
+        letter-spacing: -0.055em;
+        line-height: 1.25;
+    }
+
+    .message-input::placeholder {
+        color: rgba(255, 255, 255, 0.38);
+    }
+
+    .send-button {
+        grid-column: 3;
+        width: 54px;
+        height: 54px;
+        min-height: 54px;
+        align-self: center;
+        margin: 0;
+        border-radius: 999px;
+        background: #142f8a;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            0 10px 28px rgba(30, 76, 220, 0.22);
+    }
+
+    .send-button .material-symbols-outlined {
+        font-size: 26px;
+        transform: translateX(1px);
+    }
+
+    .stop-button {
+        grid-column: 3;
+        width: 54px;
+        height: 54px;
+        min-height: 54px;
+        align-self: center;
+        margin: 0;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.94);
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.1),
+            0 10px 28px rgba(0, 0, 0, 0.26);
+    }
+
+    .stop-button .material-symbols-outlined {
+        font-size: 29px;
+        font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24;
+    }
+
+    .stop-button-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
     }
 
     .composer-model-switcher {
-        width: 100%;
-        margin: 0;
+        display: none;
+    }
+
+    .composer-note {
+        display: none;
+    }
+
+    .attachment-tray:not([hidden]) {
+        margin-bottom: 10px;
+        padding: 0 8px 2px;
+    }
+
+    .sidebar {
+        width: min(86vw, 390px);
+        padding: max(34px, env(safe-area-inset-top)) 24px max(18px, env(safe-area-inset-bottom));
+        gap: 18px;
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
+        background: #000000;
+        box-shadow: 24px 0 80px rgba(0, 0, 0, 0.78);
+    }
+
+    body.sidebar-expanded .sidebar {
+        width: min(86vw, 390px);
+        padding-right: 24px;
+        padding-left: 24px;
+    }
+
+    .sidebar-scrim {
+        background:
+            radial-gradient(ellipse at 118% 92%, rgba(17, 55, 155, 0.34), transparent 36%),
+            rgba(0, 0, 0, 0.58);
+    }
+
+    .sidebar-header,
+    body.sidebar-expanded .sidebar-header {
+        min-height: 54px;
+        justify-content: space-between;
+        margin: 0 0 6px;
+    }
+
+    .sidebar-header::before {
+        content: "Nexa AI";
+        color: rgba(255, 255, 255, 0.94);
+        font-size: 2.05rem;
+        font-weight: 500;
+        letter-spacing: -0.065em;
+    }
+
+    .sidebar-brand,
+    .brand-lockup,
+    body.sidebar-expanded .brand-lockup,
+    body:not(.sidebar-expanded) .brand-lockup {
+        display: none;
+    }
+
+    .sidebar-close-button {
+        position: static;
+        width: 52px;
+        height: 52px;
+        color: rgba(255, 255, 255, 0.72);
+        background: transparent;
+        transform: none;
+    }
+
+    .sidebar-close-button .material-symbols-outlined {
+        font-size: 31px;
+    }
+
+    .new-chat-button,
+    body.sidebar-expanded .new-chat-button {
+        min-height: 64px;
+        height: 64px;
+        justify-content: flex-start;
+        gap: 18px;
+        padding: 0 24px;
+        border: 0;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.94);
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: none;
+        font-size: 1.45rem;
+        font-weight: 430;
+        letter-spacing: -0.055em;
+    }
+
+    .sidebar-new-chat::before {
+        opacity: 0;
+    }
+
+    .sidebar-new-chat .material-symbols-outlined,
+    .sidebar-new-chat .sidebar-item-label {
+        color: rgba(255, 255, 255, 0.94);
+    }
+
+    .sidebar-new-chat .material-symbols-outlined {
+        font-size: 31px;
+        font-weight: 300;
+    }
+
+    .sidebar-nav {
+        gap: 10px;
+        padding: 0;
+    }
+
+    .sidebar-nav-item,
+    .sidebar-bottom-link,
+    body.sidebar-expanded .sidebar-nav-item,
+    body.sidebar-expanded .sidebar-bottom-link,
+    body:not(.sidebar-expanded) .sidebar-nav-item,
+    body:not(.sidebar-expanded) .sidebar-bottom-link {
+        min-height: 58px;
+        height: 58px;
+        justify-content: flex-start;
+        gap: 22px;
+        padding: 0 8px;
+        border: 0;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.82);
+        background: transparent;
+        box-shadow: none;
+        font-size: 1.38rem;
+        font-weight: 420;
+        letter-spacing: -0.055em;
+    }
+
+    .sidebar-nav-item.active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-nav-item.active::before,
+    .sidebar-nav-item.active::after {
+        display: none;
+    }
+
+    .sidebar .material-symbols-outlined {
+        width: 38px;
+        height: 38px;
+        flex-basis: 38px;
+        font-size: 33px;
+        font-weight: 260;
+    }
+
+    .sidebar-item-label,
+    body.sidebar-expanded .sidebar-item-label,
+    body:not(.sidebar-expanded) .sidebar-item-label {
+        max-width: 240px;
+        opacity: 1;
+        transform: none;
+    }
+
+    .sidebar-history {
+        margin-top: 22px;
+        padding-top: 18px;
+        border-top: 0;
+        gap: 12px;
+    }
+
+    .sidebar-history-heading {
+        min-height: 36px;
+        padding: 0 8px;
+        color: rgba(255, 255, 255, 0.36);
+        font-size: 1.25rem;
+        font-weight: 450;
+        letter-spacing: -0.04em;
+    }
+
+    .conversation-list {
+        gap: 8px;
+    }
+
+    .conversation-item {
+        min-height: 54px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+    }
+
+    .conversation-main {
+        min-height: 54px;
+        padding: 0 8px;
+        gap: 14px;
+    }
+
+    .conversation-main svg {
+        display: none;
+    }
+
+    .conversation-name {
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 1.08rem;
+        font-weight: 430;
+        letter-spacing: -0.045em;
+    }
+
+    .conversation-preview,
+    .conversation-date {
+        display: none;
+    }
+
+    .conversation-actions {
+        opacity: 1;
+        transform: none;
+        right: 4px;
+    }
+
+    .conversation-actions button:first-child {
+        display: none;
+    }
+
+    .conversation-actions button {
+        color: rgba(255, 255, 255, 0.38);
+        background: transparent;
+    }
+
+    .sidebar-bottom {
+        margin-top: auto;
+        padding-top: 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
 
 }

@@ -51,10 +51,12 @@ a {
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 6.25rem;
 }
 
 .site-main > section {
   width: 100%;
+  scroll-margin-top: 6.25rem;
 }
 
 .topbar {
@@ -280,6 +282,25 @@ html {
 
   .topbar {
     transition-duration: 260ms;
+  }
+
+  html {
+    scroll-padding-top: 7.25rem;
+  }
+
+  .site-main > section {
+    scroll-margin-top: 7.25rem;
+  }
+
+  .site-main h1,
+  .site-main h2,
+  .site-main h3 {
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+
+  .landing-section {
+    padding-inline: 1.25rem;
   }
 
   .topbar-surface {

@@ -1,3 +1,57 @@
+import { createApiClient } from "./js/api.js";
+import {
+    findMathToken,
+    normalizeEscapedLatex,
+    normalizeLatexSource,
+    renderAllAssistantMath,
+    renderKatexMathInElement,
+    restoreMathPlaceholders,
+} from "./js/render/markdown.js";
+import {
+    getAttachmentPreviewSource,
+    renderPendingAttachmentTray,
+} from "./js/render/attachments.js";
+import {
+    clearImagePreview,
+    closeDialogElement,
+    configureConfirmDialog,
+    openDialogElement,
+    setImagePreview,
+} from "./js/features/dialogs.js";
+import { createFeedbackPayload, createResponseFooter } from "./js/features/feedback.js";
+import {
+    getProviderModelName,
+    renderActiveProviderSwitcher as renderProviderSwitcher,
+    renderProviderSettingsPanel,
+    setProviderStatusElements,
+} from "./js/features/providers.js";
+import { renderConversationList } from "./js/render/conversations.js";
+import {
+    createMessageElement as createRenderedMessageElement,
+} from "./js/render/messages.js";
+import {
+    appendStreamingChunk as appendRenderedStreamingChunk,
+    beginStreamingRender as beginRenderedStreamingRender,
+    finalizeStreamingRender as finalizeRenderedStreamingRender,
+    retargetStreamingRender as retargetRenderedStreamingRender,
+} from "./js/render/streaming.js";
+import { createConversation, createId, createMessage, readJsonStorage } from "./js/state.js";
+import {
+    GLOBAL_STORAGE_KEY,
+    IMAGE_MIME_TYPES,
+    LEGACY_STORAGE_KEY,
+    MAX_ATTACHMENT_BYTES,
+    MAX_ATTACHMENTS,
+    TEXT_EXTENSIONS,
+    THEME_STORAGE_KEY,
+    WELCOME_PROMPTS,
+    storageKeysForUser,
+} from "./js/utils/constants.js";
+import { escapeAttribute, escapeHtml, renderIcons } from "./js/utils/dom.js";
+import { formatBytes, formatDate } from "./js/utils/format.js";
+
+
+export function initChatWorkspace() {
 document.addEventListener("DOMContentLoaded", () => {
     const rawUserId = document.body?.dataset.userId || "guest";
     const CURRENT_USER = {
@@ -6,30 +60,16 @@ document.addEventListener("DOMContentLoaded", () => {
         email: document.body?.dataset.userEmail || "",
         authenticated: document.body?.dataset.authenticated === "true",
     };
-    let csrfToken = document.body?.dataset.csrfToken || "";
-    const USER_STORAGE_ID = String(rawUserId).replace(/[^a-zA-Z0-9_-]/g, "_") || "guest";
-    const GLOBAL_STORAGE_KEY = "gemini-chat-workspace-state-v2";
-    const LEGACY_STORAGE_KEY = "chatbot-simple-conversations";
-    const STORAGE_KEY = `conversations_${USER_STORAGE_ID}`;
-    const HISTORY_STORAGE_KEY = `chat_history_${USER_STORAGE_ID}`;
-    const THEME_STORAGE_KEY = "workspace_theme_preference";
-    const PREFERENCES_STORAGE_KEY = `workspace_preferences_${USER_STORAGE_ID}`;
-    const MIGRATION_KEY = `workspace_migrated_${USER_STORAGE_ID}`;
-    const MAX_ATTACHMENTS = 4;
-    const MAX_ATTACHMENT_BYTES = 12 * 1024 * 1024;
-    const STREAM_RENDER_INTERVAL_MS = 120;
-    const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"]);
-    const TEXT_EXTENSIONS = new Set(["txt", "md", "pdf", "docx"]);
-    const WELCOME_PROMPTS = [
-        "What would you like to do today?",
-        "What's on your mind?",
-        "Where would you like to begin?",
-        "Need help with an idea?",
-        "Let's build something great.",
-        "Ready to learn something new?",
-        "Need writing, coding, or research assistance?",
-        "Ask me anything.",
-    ];
+    const {
+        userStorageId: USER_STORAGE_ID,
+        storageKey: STORAGE_KEY,
+        historyStorageKey: HISTORY_STORAGE_KEY,
+        preferencesStorageKey: PREFERENCES_STORAGE_KEY,
+        migrationKey: MIGRATION_KEY,
+    } = storageKeysForUser(rawUserId);
+    const apiClient = window.NexaAiApi || createApiClient(document.body?.dataset.csrfToken || "");
+    window.NexaAiApi = apiClient;
+    const apiFetch = apiClient.apiFetch;
 
     const els = {
         html: document.documentElement,
@@ -126,51 +166,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let preferencesSaveTimer = null;
     let welcomePromptIndex = Math.floor(Math.random() * WELCOME_PROMPTS.length);
 
-    function renderIcons() {
-        if (window.lucide) {
-            window.lucide.createIcons();
-        }
-    }
-
-    function createId(prefix) {
-        if (window.crypto?.randomUUID) {
-            return `${prefix}-${window.crypto.randomUUID()}`;
-        }
-
-        return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    }
-
-    function createMessage(role, text, extra = {}) {
-        const now = Date.now();
-
-        return {
-            id: createId("msg"),
-            role,
-            text,
-            createdAt: now,
-            provider: null,
-            model: null,
-            attachments: [],
-            feedback: null,
-            isError: false,
-            isLoading: false,
-            isStopped: false,
-            ...extra,
-        };
-    }
-
-    function createConversation(title = "New chat", messages = []) {
-        const now = Date.now();
-
-        return {
-            id: createId("conv"),
-            title,
-            messages,
-            createdAt: now,
-            updatedAt: now,
-        };
-    }
-
     function createFreshState() {
         const conversation = createConversation();
 
@@ -253,15 +248,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return next;
     }
 
-    function readJsonStorage(key) {
-        try {
-            return JSON.parse(localStorage.getItem(key));
-        } catch (error) {
-            console.warn(`Could not read ${key}:`, error);
-            return null;
-        }
-    }
-
     function readLegacyConversationsForMigration() {
         if (localStorage.getItem(MIGRATION_KEY) === "true") {
             return [];
@@ -323,62 +309,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function saveState() {
         window.clearTimeout(preferencesSaveTimer);
         preferencesSaveTimer = window.setTimeout(savePreferencesNow, 180);
-    }
-
-    function isUnsafeMethod(method) {
-        return ["POST", "PUT", "PATCH", "DELETE"].includes(String(method || "GET").toUpperCase());
-    }
-
-    async function refreshCsrfToken() {
-        if (window.NexaAiApi?.refreshCsrfToken) {
-            csrfToken = await window.NexaAiApi.refreshCsrfToken();
-            return csrfToken;
-        }
-
-        const response = await fetch("/api/csrf", {
-            credentials: "same-origin",
-        });
-        const data = await response.json().catch(() => ({}));
-
-        if (data.csrfToken) {
-            csrfToken = data.csrfToken;
-        }
-
-        return csrfToken;
-    }
-
-    async function apiFetch(url, options = {}, retry = true) {
-        if (window.NexaAiApi?.apiFetch) {
-            return window.NexaAiApi.apiFetch(url, options, retry);
-        }
-
-        const method = String(options.method || "GET").toUpperCase();
-        const headers = new Headers(options.headers || {});
-
-        if (isUnsafeMethod(method)) {
-            if (!csrfToken) {
-                await refreshCsrfToken();
-            }
-            headers.set("X-CSRF-Token", csrfToken);
-        }
-
-        const response = await fetch(url, {
-            credentials: "same-origin",
-            ...options,
-            method,
-            headers,
-        });
-
-        if (response.status === 403 && retry) {
-            const data = await response.clone().json().catch(() => ({}));
-
-            if (data.code === "invalid_csrf_token") {
-                await refreshCsrfToken();
-                return apiFetch(url, options, false);
-            }
-        }
-
-        return response;
     }
 
     async function loadConversations() {
@@ -462,77 +392,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return state.conversations[0];
     }
 
-    function escapeHtml(text) {
-        const div = document.createElement("div");
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    function escapeAttribute(text) {
-        return escapeHtml(text).replace(/"/g, "&quot;");
-    }
-
-    function formatDate(timestamp) {
-        const value = Number(timestamp);
-
-        if (!value) {
-            return "No activity";
-        }
-
-        const diff = Date.now() - value;
-        const minute = 60 * 1000;
-        const hour = 60 * minute;
-        const day = 24 * hour;
-
-        if (diff < minute) {
-            return "now";
-        }
-
-        if (diff < hour) {
-            return `${Math.floor(diff / minute)} min ago`;
-        }
-
-        if (diff < day) {
-            return `${Math.floor(diff / hour)} hr ago`;
-        }
-
-        return new Intl.DateTimeFormat(undefined, {
-            month: "short",
-            day: "numeric",
-        }).format(new Date(value));
-    }
-
-    function getConversationPreview(conversation) {
-        const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
-        const lastMessage = [...messages]
-            .reverse()
-            .find((message) => String(message?.text || "").trim() || (message?.attachments || []).length > 0);
-
-        if (!lastMessage) {
-            return "No messages yet";
-        }
-
-        const text = String(lastMessage.text || "").replace(/\s+/g, " ").trim();
-        if (text) {
-            return text.length > 76 ? `${text.slice(0, 76).trim()}...` : text;
-        }
-
-        const count = (lastMessage.attachments || []).length;
-        return count === 1 ? "1 attachment" : `${count} attachments`;
-    }
-
-    function formatBytes(bytes) {
-        if (bytes < 1024) {
-            return `${bytes} B`;
-        }
-
-        if (bytes < 1024 * 1024) {
-            return `${(bytes / 1024).toFixed(1)} KB`;
-        }
-
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    }
-
     function stripTransientAttachmentFields(attachment) {
         const {
             previewUrl: _previewUrl,
@@ -551,10 +410,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function cleanupPendingAttachmentUrls(attachments = pendingAttachments) {
         attachments.forEach(revokeAttachmentObjectUrl);
-    }
-
-    function getAttachmentPreviewSource(attachment) {
-        return attachment?.previewUrl || attachment?.url || attachment?.dataUrl || attachment?.data_url || "";
     }
 
     function getTitleFromMessage(text, attachments = []) {
@@ -631,6 +486,23 @@ document.addEventListener("DOMContentLoaded", () => {
         return normalizeDisplayName(emailName) || "there";
     }
 
+    function titleCaseName(value) {
+        return String(value || "")
+            .trim()
+            .toLocaleLowerCase("vi-VN")
+            .replace(/(^|\s|-)\p{L}/gu, (match) => match.toLocaleUpperCase("vi-VN"));
+    }
+
+    function getMobileWelcomeName() {
+        const name = getWelcomeName();
+        if (!name || /^there$/i.test(name)) {
+            return "there";
+        }
+
+        const firstName = name.trim().split(/\s+/)[0] || name;
+        return titleCaseName(firstName);
+    }
+
     function getTimeBasedGreeting() {
         const hour = new Date().getHours();
         const name = getWelcomeName();
@@ -668,7 +540,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const conversation = getActiveConversation();
         const isTyping = document.activeElement === els.messageInput && els.messageInput.value.trim().length > 0;
 
-        if (!prompt || conversation.messages.length > 0 || isTyping) {
+        if (!prompt || conversation.messages.length > 0 || isTyping || mobileSidebarQuery.matches) {
             return;
         }
 
@@ -679,6 +551,14 @@ document.addEventListener("DOMContentLoaded", () => {
             prompt.textContent = WELCOME_PROMPTS[welcomePromptIndex];
             prompt.classList.remove("is-changing");
         }, 180);
+    }
+
+    function getWelcomePromptText() {
+        if (mobileSidebarQuery.matches) {
+            return `What's next, ${getMobileWelcomeName()}?`;
+        }
+
+        return WELCOME_PROMPTS[welcomePromptIndex];
     }
 
     function getResolvedTheme() {
@@ -759,72 +639,15 @@ document.addEventListener("DOMContentLoaded", () => {
         return providerWorkspace.providers.find((provider) => provider.id === connectionId) || null;
     }
 
-    function getProviderModelName(provider) {
-        const selectedModel = provider?.selectedModel || "";
-        const model = (provider?.models || []).find((item) => item.id === selectedModel);
-        return model?.name || selectedModel || "No Model Selected";
-    }
-
-    function getProviderSwitcherLabel(provider) {
-        return getProviderModelName(provider);
-    }
-
     function renderActiveProviderSwitcher() {
-        if (!els.activeProviderSelect) {
-            return;
-        }
-
-        const active = providerWorkspace.activeProvider;
-        const providers = [...providerWorkspace.providers];
-
-        if (els.activeModelPrefix) {
-            els.activeModelPrefix.textContent = active?.selectedModel ? "Using" : "";
-        }
-
-        if (active?.isEnvironment && !providers.some((provider) => provider.id === active.id)) {
-            providers.unshift(active);
-        }
-
-        els.activeProviderSelect.textContent = "";
-
-        if (providers.length === 0) {
-            const option = document.createElement("option");
-            option.value = "";
-            option.textContent = "No Model Selected";
-            els.activeProviderSelect.appendChild(option);
-            els.activeProviderSelect.disabled = true;
-            return;
-        }
-
-        providers.forEach((provider) => {
-            const option = document.createElement("option");
-            option.value = provider.id;
-            option.textContent = getProviderSwitcherLabel(provider);
-            els.activeProviderSelect.appendChild(option);
-        });
-
-        els.activeProviderSelect.value = active?.id || providerWorkspace.activeProviderId || providers[0].id;
-        els.activeProviderSelect.disabled = isSending || providers.every((provider) => provider.isEnvironment);
+        renderProviderSwitcher(els, providerWorkspace, isSending);
     }
 
     function setProviderStatus(message, isError = false) {
-        if (els.detectModelsStatus) {
-            els.detectModelsStatus.textContent = message || "";
-            els.detectModelsStatus.classList.toggle("error", isError);
-        }
-
-        if (els.connectionStatus && message) {
-            els.connectionStatus.textContent = message;
-            els.connectionStatus.classList.toggle("connected", !isError && /connected|detected|saved/i.test(message));
-            els.connectionStatus.classList.toggle("error", isError);
-        }
+        setProviderStatusElements(els, message, isError);
     }
 
     function renderProviderSettings() {
-        if (!els.providerForm) {
-            return;
-        }
-
         const editingProvider = getSavedProvider(editingProviderId);
         const models = Array.isArray(detectedProvider?.models)
             ? detectedProvider.models
@@ -834,73 +657,14 @@ document.addEventListener("DOMContentLoaded", () => {
             els.detectedModelSelect?.value ||
             "";
 
-        if (els.detectedModelSelect) {
-            els.detectedModelSelect.textContent = "";
-
-            if (models.length === 0) {
-                const option = document.createElement("option");
-                option.value = "";
-                option.textContent = "No models detected";
-                els.detectedModelSelect.appendChild(option);
-                els.detectedModelSelect.disabled = true;
-            } else {
-                models.forEach((model) => {
-                    const option = document.createElement("option");
-                    option.value = model.id;
-                    option.textContent = model.name || model.id;
-                    els.detectedModelSelect.appendChild(option);
-                });
-                els.detectedModelSelect.value = models.some((model) => model.id === selectedModel)
-                    ? selectedModel
-                    : models[0].id;
-                els.detectedModelSelect.disabled = isSending;
-            }
-        }
-
-        if (els.manualModelField) {
-            els.manualModelField.hidden = models.length > 0;
-        }
-
-        if (els.activeProviderSummary) {
-            els.activeProviderSummary.textContent = providerWorkspace.activeProvider
-                ? `Using ${getProviderModelName(providerWorkspace.activeProvider)}`
-                : "No model selected";
-        }
-
-        if (els.connectionStatus) {
-            const activeStatus = providerWorkspace.activeProvider?.connectionStatus || "Not connected";
-            els.connectionStatus.textContent = activeStatus === "environment"
-                ? "Environment fallback"
-                : (activeStatus === "not_configured" ? "Not connected" : activeStatus);
-            els.connectionStatus.classList.toggle("connected", ["connected", "environment"].includes(activeStatus));
-            els.connectionStatus.classList.remove("error");
-        }
-
-        if (els.savedProviderList) {
-            els.savedProviderList.innerHTML = providerWorkspace.providers.length === 0
-                ? `<div class="saved-provider-empty">No saved providers yet.</div>`
-                : providerWorkspace.providers.map((provider) => `
-                    <div class="saved-provider-item${provider.isActive ? " active" : ""}" data-provider-id="${escapeAttribute(provider.id)}">
-                        <span class="saved-provider-copy">
-                            <strong>${escapeHtml(provider.provider || provider.label || provider.providerType)}</strong>
-                            <span>${escapeHtml(getProviderModelName(provider))}${provider.maskedApiKey ? ` \u00b7 ${escapeHtml(provider.maskedApiKey)}` : ""}</span>
-                        </span>
-                        <span class="saved-provider-actions">
-                            <button type="button" data-provider-action="activate" aria-label="Use ${escapeAttribute(provider.provider || provider.providerType)}" ${provider.isActive ? "disabled" : ""}>
-                                <span class="material-symbols-outlined">check_circle</span>
-                            </button>
-                            <button type="button" data-provider-action="edit" aria-label="Edit ${escapeAttribute(provider.provider || provider.providerType)}">
-                                <span class="material-symbols-outlined">edit</span>
-                            </button>
-                            <button class="delete-provider-button" type="button" data-provider-action="delete" aria-label="Delete ${escapeAttribute(provider.provider || provider.providerType)}">
-                                <span class="material-symbols-outlined">delete</span>
-                            </button>
-                        </span>
-                    </div>
-                `).join("");
-        }
-
-        renderActiveProviderSwitcher();
+        renderProviderSettingsPanel(els, {
+            escapeAttribute,
+            escapeHtml,
+            isSending,
+            models,
+            providerWorkspace,
+            selectedModel,
+        });
         renderIcons();
     }
 
@@ -1170,40 +934,13 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.classList.toggle("search-open", isSearchOpen);
         els.searchToggleButton?.setAttribute("aria-expanded", String(isSearchOpen));
 
-        if (visibleConversations.length === 0) {
-            els.conversationList.innerHTML = normalizedSearch
-                ? `<div class="empty-search"><strong>No matching chats</strong><span class="empty-caption">Try another search term.</span></div>`
-                : `<div class="empty-history"><strong>No chats yet</strong><span class="empty-caption">Start a new conversation to build history.</span></div>`;
-            return;
-        }
-
-        els.conversationList.innerHTML = visibleConversations
-            .map((conversation) => {
-                const isActive = conversation.id === state.activeConversationId;
-                const activeClass = isActive ? " active" : "";
-
-                return `
-                    <div class="conversation-item${activeClass}" data-conversation-id="${escapeAttribute(conversation.id)}">
-                        <button class="conversation-main" type="button" data-action="open-conversation" data-conversation-id="${escapeAttribute(conversation.id)}" aria-current="${isActive ? "true" : "false"}">
-                            <i data-lucide="message-square"></i>
-                            <span class="conversation-copy">
-                                <span class="conversation-name">${escapeHtml(conversation.title)}</span>
-                                <span class="conversation-preview">${escapeHtml(getConversationPreview(conversation))}</span>
-                                <span class="conversation-date">${formatDate(conversation.updatedAt)}</span>
-                            </span>
-                        </button>
-                        <span class="conversation-actions">
-                            <button type="button" data-action="rename-conversation" data-conversation-id="${escapeAttribute(conversation.id)}" aria-label="Rename ${escapeAttribute(conversation.title)}">
-                                <i data-lucide="pencil"></i>
-                            </button>
-                            <button type="button" data-action="delete-conversation" data-conversation-id="${escapeAttribute(conversation.id)}" aria-label="Delete ${escapeAttribute(conversation.title)}">
-                                <i data-lucide="trash-2"></i>
-                            </button>
-                        </span>
-                    </div>
-                `;
-            })
-            .join("");
+        renderConversationList(els.conversationList, visibleConversations, {
+            activeConversationId: state.activeConversationId,
+            escapeAttribute,
+            escapeHtml,
+            formatDate,
+            hasSearchTerm: Boolean(normalizedSearch),
+        });
     }
 
     function renderTopbar() {
@@ -1239,69 +976,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderAttachmentTray() {
-        if (!els.attachmentTray) {
-            return;
-        }
-
-        els.attachmentTray.hidden = pendingAttachments.length === 0 && !isProcessingAttachment;
-        els.attachmentTray.textContent = "";
-
-        pendingAttachments.forEach((attachment) => {
-            const chip = document.createElement("div");
-            chip.className = `attachment-chip ${attachment.kind === "image" ? "image-chip" : ""}`;
-            chip.dataset.attachmentId = attachment.id;
-
-            if (attachment.kind === "image") {
-                const previewButton = document.createElement("button");
-                previewButton.type = "button";
-                previewButton.className = "attachment-image-trigger";
-                previewButton.dataset.action = "open-image-preview";
-                previewButton.setAttribute("aria-label", `Open preview for ${attachment.name}`);
-
-                const preview = document.createElement("img");
-                preview.src = getAttachmentPreviewSource(attachment);
-                preview.alt = attachment.name || "Attached image";
-                preview.className = "attachment-preview";
-                previewButton.appendChild(preview);
-                chip.appendChild(previewButton);
-            } else {
-                const icon = document.createElement("i");
-                icon.dataset.lucide = "file-text";
-                chip.appendChild(icon);
-            }
-
-            const name = document.createElement("span");
-            name.textContent = attachment.name;
-            chip.appendChild(name);
-
-            const size = document.createElement("small");
-            size.textContent = attachment.isReading ? "Preparing" : formatBytes(attachment.size);
-            chip.appendChild(size);
-
-            const removeButton = document.createElement("button");
-            removeButton.type = "button";
-            removeButton.dataset.action = "remove-attachment";
-            removeButton.setAttribute("aria-label", `Remove ${attachment.name}`);
-            removeButton.innerHTML = '<i data-lucide="x"></i>';
-            chip.appendChild(removeButton);
-
-            els.attachmentTray.appendChild(chip);
+        renderPendingAttachmentTray(els.attachmentTray, pendingAttachments, {
+            formatBytes,
+            getAttachmentPreviewSource,
+            isProcessingAttachment,
         });
-
-        if (isProcessingAttachment) {
-            const chip = document.createElement("div");
-            chip.className = "attachment-chip processing-chip";
-            chip.innerHTML = `
-                <span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
-                <span>Processing file</span>
-            `;
-            els.attachmentTray.appendChild(chip);
-        }
     }
 
     function syncComposerState() {
         const hasText = els.messageInput.value.trim().length > 0;
         const hasAttachments = pendingAttachments.length > 0;
+        els.sendButton.hidden = isSending;
         els.sendButton.disabled = isSending || isProcessingAttachment || (!hasText && !hasAttachments);
         els.messageInput.disabled = isSending;
         els.attachButton.disabled = isSending;
@@ -1458,36 +1143,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const content = tokens[Number(index)];
             return typeof content === "string" ? `\\[\n${content}\n\\]` : match;
         });
-    }
-
-    function normalizeEscapedLatex(source) {
-        return String(source || "")
-            .replace(/\\\\(?=[\[\]\(\)])/g, "\\")
-            .replace(/\\\\(?=(?:begin|end|frac|dfrac|tfrac|sqrt|det|operatorname|lambda|mathbb|mathrm|mathbf|mathcal|text|times|cdot|neq|ne|leq?|geq?|approx|div|pm|mp|sum|prod|int|lim|infty|left|right|to|Rightarrow|Leftrightarrow|sin|cos|tan|log|ln)\b)/g, "\\");
-    }
-
-    function normalizeLatexSource(source) {
-        return normalizeEscapedLatex(source)
-            .replace(/√\s*\(([^)]+)\)/g, "\\sqrt{$1}")
-            .replace(/√\s*([A-Za-z0-9]+)/g, "\\sqrt{$1}")
-            .replace(/≠/g, "\\ne")
-            .replace(/≤/g, "\\le")
-            .replace(/≥/g, "\\ge")
-            .replace(/≈/g, "\\approx")
-            .replace(/×/g, "\\times")
-            .replace(/÷/g, "\\div")
-            .replace(/±/g, "\\pm")
-            .replace(/∓/g, "\\mp")
-            .replace(/√/g, "\\sqrt{}")
-            .replace(/∑/g, "\\sum")
-            .replace(/∫/g, "\\int")
-            .replace(/∞/g, "\\infty")
-            .replace(/→/g, "\\to")
-            .replace(/⇒/g, "\\Rightarrow")
-            .replace(/⇔/g, "\\Leftrightarrow")
-            .replace(/−/g, "-")
-            .replace(/[“”]/g, "\"")
-            .replace(/[‘’]/g, "'");
     }
 
     function hasMathOperator(source) {
@@ -1798,228 +1453,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return output + normalizedSource.slice(cursor);
     }
 
-    function findMathToken(source) {
-        const delimiters = [
-            { open: "\\[", close: "\\]", display: true },
-            { open: "$$", close: "$$", display: true },
-            { open: "\\(", close: "\\)", display: false },
-            { open: "$", close: "$", display: false },
-        ];
-        let firstToken = null;
-
-        for (const delimiter of delimiters) {
-            let start = source.indexOf(delimiter.open);
-
-            while (start !== -1) {
-                if (delimiter.open === "$") {
-                    const previous = source[start - 1] || "";
-                    const next = source[start + 1] || "";
-
-                    if (previous === "\\" || /\s/.test(next)) {
-                        start = source.indexOf(delimiter.open, start + delimiter.open.length);
-                        continue;
-                    }
-                }
-
-                const end = source.indexOf(delimiter.close, start + delimiter.open.length);
-
-                if (end !== -1) {
-                    const raw = source.slice(start + delimiter.open.length, end).trim();
-                    const beforeClose = source[end - 1] || "";
-
-                    if (raw && (delimiter.open !== "$" || !/\s/.test(beforeClose))) {
-                        const token = {
-                            start,
-                            end: end + delimiter.close.length,
-                            raw,
-                            display: delimiter.display,
-                        };
-
-                        if (!firstToken || token.start < firstToken.start) {
-                            firstToken = token;
-                        }
-                    }
-                }
-
-                break;
-            }
-        }
-
-        return firstToken;
-    }
-
-    function getDelimitedMathSource(source, displayMode) {
-        return displayMode ? `\\[${source}\\]` : `\\(${source}\\)`;
-    }
-
-    function createMathNode(source, displayMode) {
-        const normalizedSource = normalizeLatexSource(source);
-        const fallbackText = getDelimitedMathSource(normalizedSource, displayMode);
-
-        if (!window.katex) {
-            return document.createTextNode(fallbackText);
-        }
-
-        const wrapper = document.createElement(displayMode ? "div" : "span");
-        wrapper.className = displayMode ? "math-block" : "math-inline";
-
-        try {
-            wrapper.innerHTML = window.katex.renderToString(normalizedSource, {
-                displayMode,
-                strict: "ignore",
-                throwOnError: false,
-                trust: false,
-            });
-            return wrapper;
-        } catch (error) {
-            return document.createTextNode(fallbackText);
-        }
-    }
-
-    function appendMathNode(fragment, source, displayMode) {
-        fragment.appendChild(createMathNode(source, displayMode));
-    }
-
-    function restoreMathPlaceholders(root, tokens = []) {
-        if (!root || tokens.length === 0) {
-            return;
-        }
-
-        const placeholderPattern = /@@nexamath(\d+)@@/g;
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-            acceptNode(node) {
-                const parent = node.parentElement;
-
-                if (!parent || parent.closest("code, pre, kbd, samp")) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-
-                return /@@nexamath\d+@@/.test(node.nodeValue || "")
-                    ? NodeFilter.FILTER_ACCEPT
-                    : NodeFilter.FILTER_REJECT;
-            },
-        });
-        const nodes = [];
-
-        while (walker.nextNode()) {
-            nodes.push(walker.currentNode);
-        }
-
-        nodes.forEach((node) => {
-            const source = node.nodeValue || "";
-            const parent = node.parentElement;
-            const onlyDisplayMath = source.trim().match(/^@@nexamath(\d+)@@$/);
-
-            if (
-                onlyDisplayMath &&
-                parent?.tagName === "P" &&
-                parent.textContent.trim() === source.trim() &&
-                tokens[Number(onlyDisplayMath[1])]?.display
-            ) {
-                const token = tokens[Number(onlyDisplayMath[1])];
-                parent.replaceWith(createMathNode(token.source, token.display));
-                return;
-            }
-
-            const fragment = document.createDocumentFragment();
-            let cursor = 0;
-            placeholderPattern.lastIndex = 0;
-            source.replace(placeholderPattern, (match, index, offset) => {
-                if (offset > cursor) {
-                    fragment.appendChild(document.createTextNode(source.slice(cursor, offset)));
-                }
-
-                const token = tokens[Number(index)];
-                fragment.appendChild(token ? createMathNode(token.source, token.display) : document.createTextNode(match));
-                cursor = offset + match.length;
-                return match;
-            });
-
-            if (cursor < source.length) {
-                fragment.appendChild(document.createTextNode(source.slice(cursor)));
-            }
-
-            node.replaceWith(fragment);
-        });
-    }
-
-    function replaceMathTextNode(textNode) {
-        const source = normalizeEscapedLatex(textNode.nodeValue || "");
-
-        if (!/[\\$]/.test(source)) {
-            return;
-        }
-
-        const fragment = document.createDocumentFragment();
-        let cursor = 0;
-        let token = findMathToken(source.slice(cursor));
-
-        while (token) {
-            const absoluteStart = cursor + token.start;
-            const absoluteEnd = cursor + token.end;
-
-            if (absoluteStart > cursor) {
-                fragment.appendChild(document.createTextNode(source.slice(cursor, absoluteStart)));
-            }
-
-            appendMathNode(fragment, token.raw, token.display);
-            cursor = absoluteEnd;
-            token = findMathToken(source.slice(cursor));
-        }
-
-        if (cursor < source.length) {
-            fragment.appendChild(document.createTextNode(source.slice(cursor)));
-        }
-
-        textNode.replaceWith(fragment);
-    }
-
-    function renderKatexMathInElement(element) {
-        if (!element) {
-            return;
-        }
-
-        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
-            acceptNode(node) {
-                const parent = node.parentElement;
-
-                if (!parent || parent.closest("code, pre, kbd, samp, .katex, .math-inline, .math-block")) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-
-                return /[\\$]/.test(node.nodeValue || "")
-                    ? NodeFilter.FILTER_ACCEPT
-                    : NodeFilter.FILTER_REJECT;
-            },
-        });
-        const nodes = [];
-
-        while (walker.nextNode()) {
-            nodes.push(walker.currentNode);
-        }
-
-        nodes.forEach(replaceMathTextNode);
-
-        if (!window.renderMathInElement || element.querySelector(".katex")) {
-            return;
-        }
-
-        window.renderMathInElement(element, {
-            delimiters: [
-                { left: "$$", right: "$$", display: true },
-                { left: "\\[", right: "\\]", display: true },
-                { left: "\\(", right: "\\)", display: false },
-                { left: "$", right: "$", display: false },
-            ],
-            throwOnError: false,
-        });
-    }
-
-    function renderAllAssistantMath() {
-        document.querySelectorAll(".assistant-message .message-content, .ai-message .message-content")
-            .forEach((element) => renderKatexMathInElement(element));
-    }
-
     function renderMessageContent(text, isError = false, options = {}) {
         const fragment = document.createDocumentFragment();
 
@@ -2063,224 +1496,19 @@ document.addEventListener("DOMContentLoaded", () => {
         return fragment;
     }
 
-    function createTypingIndicator() {
-        const wrapper = document.createElement("div");
-        wrapper.className = "typing-indicator";
-        const label = document.createElement("span");
-        label.className = "thinking-text";
-        label.textContent = "Thinking";
-        wrapper.appendChild(label);
-        return wrapper;
-    }
-
-    function splitMessageAttachments(attachments = []) {
+    function getMessageRenderContext() {
         return {
-            images: attachments.filter((attachment) => attachment.kind === "image"),
-            files: attachments.filter((attachment) => attachment.kind !== "image"),
+            copiedMessageId,
+            formatBytes,
+            getAttachmentPreviewSource,
+            openMenuId,
+            renderKatexMathInElement,
+            renderMessageContent,
         };
     }
 
-    function createMessageImageGrid(attachments) {
-        const grid = document.createElement("div");
-        grid.className = `message-image-grid image-count-${Math.min(attachments.length, 4)}`;
-
-        attachments.forEach((attachment) => {
-            const previewButton = document.createElement("button");
-            previewButton.type = "button";
-            previewButton.className = "message-image-trigger";
-            previewButton.dataset.action = "open-image-preview";
-            previewButton.dataset.attachmentId = attachment.id || "";
-            previewButton.setAttribute("aria-label", `Open image preview${attachment.name ? ` for ${attachment.name}` : ""}`);
-
-            const preview = document.createElement("img");
-            preview.src = getAttachmentPreviewSource(attachment);
-            preview.alt = attachment.name || "Attached image";
-            preview.className = "message-inline-image";
-            preview.loading = "lazy";
-            previewButton.appendChild(preview);
-            grid.appendChild(previewButton);
-        });
-
-        return grid;
-    }
-
-    function createAttachmentPills(attachments) {
-        const container = document.createElement("div");
-        container.className = "message-file-list";
-
-        attachments.forEach((attachment) => {
-            const pill = document.createElement("span");
-            pill.className = "attachment-pill";
-            pill.dataset.attachmentId = attachment.id || "";
-            const icon = document.createElement("i");
-            icon.dataset.lucide = "file-text";
-            pill.appendChild(icon);
-
-            const name = document.createElement("span");
-            name.textContent = attachment.name;
-            pill.appendChild(name);
-
-            const size = document.createElement("small");
-            size.textContent = formatBytes(Number(attachment.size) || 0);
-            pill.appendChild(size);
-            container.appendChild(pill);
-        });
-
-        return container;
-    }
-
-    function createUserMessageAttachments(imageAttachments, fileAttachments) {
-        const container = document.createElement("div");
-        container.className = "message-attachments";
-
-        if (imageAttachments.length) {
-            container.appendChild(createMessageImageGrid(imageAttachments));
-        }
-
-        if (fileAttachments.length) {
-            container.appendChild(createAttachmentPills(fileAttachments));
-        }
-
-        return container;
-    }
-
-    function createResponseFooter(message) {
-        const footer = document.createElement("div");
-        footer.className = "response-footer";
-        footer.innerHTML = `
-            <div class="reaction-buttons" aria-label="Response actions">
-                <button class="${message.feedback === "like" ? "active" : ""}" type="button" data-action="like-response" aria-label="Like response">
-                    <i data-lucide="thumbs-up"></i>
-                </button>
-                <button class="${message.feedback === "dislike" ? "active" : ""}" type="button" data-action="dislike-response" aria-label="Dislike response">
-                    <i data-lucide="thumbs-down"></i>
-                </button>
-                <button type="button" data-action="copy-response" aria-label="Copy response">
-                    <i data-lucide="copy"></i>
-                </button>
-                <span class="more-menu-wrapper">
-                    <button type="button" data-action="toggle-more" aria-label="More response options">
-                        <i data-lucide="more-horizontal"></i>
-                    </button>
-                    <span class="more-menu ${openMenuId === message.id ? "open" : ""}">
-                        <button type="button" data-action="copy-response">
-                            <i data-lucide="copy"></i>
-                            <span>Copy response</span>
-                        </button>
-                        <button type="button" data-action="delete-response">
-                            <i data-lucide="trash-2"></i>
-                            <span>Delete response</span>
-                        </button>
-                    </span>
-                </span>
-                ${copiedMessageId === message.id ? '<span class="copy-feedback">Copied</span>' : ""}
-            </div>
-            <button class="regenerate-button" type="button" data-action="regenerate-response">
-                <i data-lucide="rotate-ccw"></i>
-                <span>Regenerate</span>
-            </button>
-        `;
-        return footer;
-    }
-
     function createMessageElement(message) {
-        const row = document.createElement("article");
-        row.className = `message ${message.role === "user" ? "user-message" : "ai-message assistant-message"}`;
-        row.dataset.messageId = message.id;
-
-        const avatar = document.createElement("span");
-        avatar.className = `message-avatar ${message.role === "ai" ? "ai-avatar assistant-avatar" : "user-avatar"}`;
-        avatar.setAttribute("aria-hidden", "true");
-
-        if (message.role === "ai") {
-            const assistantLogo = document.createElement("img");
-            assistantLogo.src = "/static/assets/Hover.png";
-            assistantLogo.alt = "";
-            assistantLogo.loading = "eager";
-            avatar.appendChild(assistantLogo);
-        } else {
-            avatar.innerHTML = '<i data-lucide="user-round"></i>';
-        }
-
-        const shell = document.createElement("div");
-        shell.className = "message-shell";
-        const { images: imageAttachments, files: fileAttachments } = splitMessageAttachments(message.attachments || []);
-
-        const meta = document.createElement("div");
-        meta.className = "message-meta";
-
-        if (message.role === "ai") {
-            meta.innerHTML = `
-                ${message.isError ? '<span class="status-chip error">error</span>' : ""}
-                ${message.isStopped ? '<span class="status-chip stopped">stopped</span>' : ""}
-            `.trim();
-        } else {
-            meta.textContent = "You";
-        }
-
-        if (meta.textContent.trim()) {
-            shell.appendChild(meta);
-        }
-
-        if (message.role !== "user" && fileAttachments.length) {
-            shell.appendChild(createAttachmentPills(fileAttachments));
-        }
-
-        if (message.role === "user") {
-            if (imageAttachments.length || fileAttachments.length) {
-                const attachmentBubble = document.createElement("div");
-                attachmentBubble.className = "message-bubble attachment-bubble";
-                attachmentBubble.appendChild(createUserMessageAttachments(imageAttachments, fileAttachments));
-                shell.appendChild(attachmentBubble);
-            }
-
-            if (String(message.text || "").trim() || message.isError) {
-                const textBubble = document.createElement("div");
-                textBubble.className = "message-bubble text-bubble";
-                const textContent = document.createElement("div");
-                textContent.className = "message-content message-text";
-                textContent.appendChild(renderMessageContent(message.text, message.isError, {
-                    markdown: false,
-                }));
-
-                if (!message.isError) {
-                    renderKatexMathInElement(textContent);
-                }
-
-                textBubble.appendChild(textContent);
-                shell.appendChild(textBubble);
-            }
-        } else {
-            const bubble = document.createElement("div");
-            bubble.className = "message-bubble";
-
-            const content = document.createElement("div");
-            content.className = "message-content";
-
-            if (message.isLoading && !message.text) {
-                content.appendChild(createTypingIndicator());
-            } else {
-                content.appendChild(renderMessageContent(message.text, message.isError, {
-                    markdown: true,
-                }));
-
-                if (!message.isError) {
-                    renderKatexMathInElement(content);
-                }
-            }
-
-            bubble.appendChild(content);
-            shell.appendChild(bubble);
-        }
-
-        if (message.role === "ai" && !message.isLoading && message.text) {
-            shell.appendChild(createResponseFooter(message));
-        }
-
-        row.appendChild(avatar);
-        row.appendChild(shell);
-
-        return row;
+        return createRenderedMessageElement(message, getMessageRenderContext());
     }
 
     function createEmptyState() {
@@ -2288,8 +1516,9 @@ document.addEventListener("DOMContentLoaded", () => {
         empty.className = "empty-state";
         empty.innerHTML = `
             <div class="welcome-copy" aria-live="polite">
+                <span class="welcome-spark" aria-hidden="true"></span>
                 <p class="welcome-greeting">${escapeHtml(getTimeBasedGreeting())}</p>
-                <h2 class="welcome-prompt">${escapeHtml(WELCOME_PROMPTS[welcomePromptIndex])}</h2>
+                <h2 class="welcome-prompt">${escapeHtml(getWelcomePromptText())}</h2>
             </div>
         `;
         return empty;
@@ -2394,7 +1623,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        shell.appendChild(createResponseFooter(message));
+        shell.appendChild(createResponseFooter(message, getMessageRenderContext()));
         renderIcons();
     }
 
@@ -2421,165 +1650,45 @@ document.addEventListener("DOMContentLoaded", () => {
         renderIcons();
     }
 
-    function beginStreamingRender(message) {
-        let content = getRenderedMessageContent(message.id);
-
-        if (!content) {
-            renderChat({ forceScroll: true });
-            content = getRenderedMessageContent(message.id);
-        }
-
-        if (!content) {
-            streamingRenderState = null;
-            return;
-        }
-
-        streamingRenderState = {
-            messageId: message.id,
-            content,
-            textNode: null,
-            text: message.text || "",
-            renderTimerId: null,
-            lastRenderTime: 0,
-            lastRenderedHtml: "",
-        };
-
-        if (message.text) {
-            renderStreamingMarkdownContent(streamingRenderState, true);
-        }
-    }
-
-    function createStreamingTextNode(state) {
-        const textNode = document.createTextNode(state.text);
-        const paragraph = document.createElement("p");
-        paragraph.className = "streaming-text";
-        paragraph.appendChild(textNode);
-        state.content.replaceChildren(paragraph);
-        state.textNode = textNode;
-    }
-
-    function renderStreamingPlainText(state) {
-        if (!state.textNode) {
-            createStreamingTextNode(state);
-            return;
-        }
-
-        state.textNode.textContent = state.text;
-    }
-
-    function renderStreamingMarkdownContent(state, force = false) {
-        const rendered = buildSanitizedMarkdownContent(state.text);
-
-        if (!rendered) {
-            renderStreamingPlainText(state);
-            return;
-        }
-
-        if (!force && rendered.html === state.lastRenderedHtml) {
-            return;
-        }
-
-        state.content.replaceChildren(rendered.fragment);
-        state.textNode = null;
-        state.lastRenderedHtml = rendered.html;
-
-        try {
-            renderKatexMathInElement(state.content);
-        } catch (error) {
-            renderStreamingPlainText(state);
-        }
-    }
-
-    function retargetStreamingRender(oldMessageId, newMessageId) {
-        if (!oldMessageId || !newMessageId || oldMessageId === newMessageId) {
-            return;
-        }
-
-        const row = getRenderedMessageElement(oldMessageId);
-
-        if (row) {
-            row.dataset.messageId = newMessageId;
-        }
-
-        if (streamingRenderState?.messageId === oldMessageId) {
-            streamingRenderState.messageId = newMessageId;
-        }
-    }
-
-    function flushStreamingMarkdown() {
-        const state = streamingRenderState;
-
-        if (!state) {
-            return;
-        }
-
-        state.renderTimerId = null;
-        renderStreamingMarkdownContent(state);
-        state.lastRenderTime = performance.now();
-
-        if (shouldAutoScroll()) {
-            scrollMessagesToBottom();
-        }
-    }
-
     function shouldAutoScroll() {
         return state.settings.autoScroll && isNearBottom();
     }
 
+    function getStreamingRenderContext() {
+        return {
+            appendResponseFooterIfNeeded,
+            buildSanitizedMarkdownContent,
+            ensureAssistantMeta,
+            getRenderedMessageContent,
+            getRenderedMessageElement,
+            getStreamingRenderState: () => streamingRenderState,
+            renderChat,
+            renderMessageContent,
+            scrollMessagesToBottom,
+            setStreamingRenderState: (nextState) => {
+                streamingRenderState = nextState;
+            },
+            shouldAutoScroll,
+            updateRenderedMessage,
+        };
+    }
+
+    // Thin wrappers stay in chat.js because they bridge live chat state into the
+    // streaming renderer without moving send/stop orchestration.
+    function beginStreamingRender(message) {
+        return beginRenderedStreamingRender(message, getStreamingRenderContext());
+    }
+
+    function retargetStreamingRender(oldMessageId, newMessageId) {
+        return retargetRenderedStreamingRender(oldMessageId, newMessageId, getStreamingRenderContext());
+    }
+
     function appendStreamingChunk(message, chunk) {
-        if (!streamingRenderState || streamingRenderState.messageId !== message.id) {
-            beginStreamingRender(message);
-        }
-
-        if (!streamingRenderState) {
-            return;
-        }
-
-        streamingRenderState.text += chunk;
-
-        // Streaming can produce many tiny tokens. Buffering them and rendering
-        // Markdown on a short throttle keeps formatting progressive while the
-        // existing bubble/avatar stay mounted, preventing the old flicker.
-        if (streamingRenderState.renderTimerId === null) {
-            const elapsed = performance.now() - streamingRenderState.lastRenderTime;
-            const delay = Math.max(0, STREAM_RENDER_INTERVAL_MS - elapsed);
-            streamingRenderState.renderTimerId = window.setTimeout(() => {
-                requestAnimationFrame(flushStreamingMarkdown);
-            }, delay);
-        }
+        return appendRenderedStreamingChunk(message, chunk, getStreamingRenderContext());
     }
 
     function finalizeStreamingRender(message, options = {}) {
-        const state = streamingRenderState;
-
-        if (state?.renderTimerId !== null) {
-            window.clearTimeout(state.renderTimerId);
-        }
-
-        const content = getRenderedMessageContent(message.id) || state?.content;
-
-        if (!content) {
-            updateRenderedMessage(message, options);
-            streamingRenderState = null;
-            return;
-        }
-
-        content.replaceChildren(renderMessageContent(message.text, message.isError, {
-            markdown: message.role === "ai",
-        }));
-
-        if (!message.isError) {
-            renderKatexMathInElement(content);
-        }
-
-        const row = getRenderedMessageElement(message.id);
-        ensureAssistantMeta(row, message);
-        appendResponseFooterIfNeeded(message);
-        streamingRenderState = null;
-
-        if (options.forceScroll || shouldAutoScroll()) {
-            requestAnimationFrame(scrollMessagesToBottom);
-        }
+        return finalizeRenderedStreamingRender(message, options, getStreamingRenderContext());
     }
 
     function setLoading(isLoading, assistantId = null) {
@@ -3029,9 +2138,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    feedback: message.feedback || "",
-                }),
+                body: JSON.stringify(createFeedbackPayload(message)),
             });
             const data = await response.json().catch(() => ({}));
 
@@ -3095,56 +2202,31 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         openDialog(els.imagePreviewDialog, els.imagePreviewCloseButton);
-
-        if (els.imagePreviewLarge) {
-            els.imagePreviewLarge.src = source;
-            els.imagePreviewLarge.alt = attachment.name || "Attached image";
-        }
+        setImagePreview(els.imagePreviewLarge, attachment, source);
     }
 
     function closeImagePreview() {
         closeDialog(els.imagePreviewDialog);
-
-        if (els.imagePreviewLarge) {
-            els.imagePreviewLarge.removeAttribute("src");
-            els.imagePreviewLarge.alt = "";
-        }
+        clearImagePreview(els.imagePreviewLarge);
     }
 
     function openDialog(dialog, focusTarget = null) {
         closeAllDialogs();
-        if (!dialog) {
-            return;
-        }
-        dialog.classList.add("open");
-        dialog.setAttribute("aria-hidden", "false");
-        window.setTimeout(() => {
-            const target = focusTarget || dialog.querySelector("button, input, select, textarea");
-            target?.focus();
-        }, 40);
+        openDialogElement(dialog, focusTarget);
     }
 
     function closeDialog(dialog) {
-        if (!dialog) {
-            return;
-        }
-        dialog.classList.remove("open");
-        dialog.setAttribute("aria-hidden", "true");
+        closeDialogElement(dialog);
     }
 
     function closeAllDialogs() {
         [els.settingsDialog, els.renameDialog, els.confirmDialog, els.imagePreviewDialog].forEach((dialog) => closeDialog(dialog));
-        if (els.imagePreviewLarge) {
-            els.imagePreviewLarge.removeAttribute("src");
-            els.imagePreviewLarge.alt = "";
-        }
+        clearImagePreview(els.imagePreviewLarge);
         confirmCallback = null;
     }
 
     function openConfirmDialog({ title, message, actionLabel, onConfirm }) {
-        els.confirmTitle.textContent = title;
-        els.confirmMessage.textContent = message;
-        els.confirmAcceptButton.textContent = actionLabel;
+        configureConfirmDialog(els, { title, message, actionLabel });
         openDialog(els.confirmDialog, els.confirmAcceptButton);
         confirmCallback = onConfirm;
     }
@@ -3666,3 +2748,4 @@ document.addEventListener("DOMContentLoaded", () => {
     loadProviders();
     loadConversations().then(migrateLegacyLocalHistory);
 });
+}

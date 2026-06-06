@@ -47,6 +47,10 @@ export function ScrollWordReveal({ text, className = "" }) {
   const shouldAnimate = !reducedMotion && !mobilePerformanceMode;
   const words = text.trim().split(/\s+/);
 
+  if (!shouldAnimate) {
+    return <p className={className}>{text}</p>;
+  }
+
   return (
     <motion.p
       className={className}

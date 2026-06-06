@@ -190,6 +190,23 @@ export function Header() {
                       {item.label}
                     </a>
                   ))}
+                  <div className="mt-2 grid gap-2 border-t border-white/10 pt-4">
+                    <WorkspaceButton className="w-full" onClick={() => setOpen(false)}>
+                      Open workspace
+                    </WorkspaceButton>
+                    {user && (
+                      <button
+                        className="min-h-11 rounded-[7px] border border-white/10 bg-white/[0.035] px-3 text-left text-sm font-semibold text-white/90"
+                        type="button"
+                        onClick={() => {
+                          setOpen(false);
+                          logout();
+                        }}
+                      >
+                        Sign out
+                      </button>
+                    )}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

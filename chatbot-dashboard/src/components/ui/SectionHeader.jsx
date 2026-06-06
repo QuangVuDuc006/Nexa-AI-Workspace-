@@ -22,7 +22,7 @@ export function SectionHeader({
       } ${className}`}
     >
       {label && <SectionLabel>{label}</SectionLabel>}
-      <h2 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.04] tracking-[-0.055em] text-white md:text-5xl lg:text-[3.45rem]">
+      <h2 className="max-w-3xl break-words text-balance text-[2.45rem] font-semibold leading-[1.05] tracking-[-0.035em] text-white sm:text-4xl md:text-5xl md:tracking-[-0.055em] lg:text-[3.45rem]">
         {typewriter ? (
           <ScrollTypewriterText text={title} speed={typewriterSpeed} delay={typewriterDelay} />
         ) : (

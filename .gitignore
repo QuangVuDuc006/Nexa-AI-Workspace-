@@ -3,10 +3,17 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 .venv/
 venv/
 env/
 ENV/
+__pypackages__/
 
 # Web / Node / Frontend Build output
 node_modules/
@@ -15,6 +22,9 @@ build/
 .svelte-kit/
 .next/
 out/
+.vite/
+.turbo/
+coverage/
 
 # Environment configurations and Secrets
 .env
@@ -27,6 +37,12 @@ out/
 
 # Log files
 *.log
+*.out
+*.err
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 server-*.log
 vite-dev.log
 vite-dev.err.log

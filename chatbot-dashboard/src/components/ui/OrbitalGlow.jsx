@@ -1,15 +1,18 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useMobilePerformanceMode } from "../../hooks/useMobilePerformanceMode";
 import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
 
 export function OrbitalGlow({ className = "" }) {
   const reducedMotion = usePrefersReducedMotion();
+  const mobilePerformanceMode = useMobilePerformanceMode();
+  const shouldAnimate = !reducedMotion && !mobilePerformanceMode;
 
   return (
     <motion.div
-      className={`pointer-events-none absolute rounded-full opacity-80 blur-2xl ${className}`}
+      className={`pointer-events-none absolute rounded-full opacity-80 blur-2xl ${mobilePerformanceMode ? "opacity-35" : ""} ${className}`}
       animate={
-        reducedMotion
+        !shouldAnimate
           ? undefined
           : {
               rotate: [0, 360],
@@ -18,7 +21,7 @@ export function OrbitalGlow({ className = "" }) {
               y: [0, -14, 10, 0],
             }
       }
-      transition={reducedMotion ? undefined : { duration: 24, repeat: Infinity, ease: "easeInOut" }}
+      transition={shouldAnimate ? { duration: 24, repeat: Infinity, ease: "easeInOut" } : undefined}
       aria-hidden="true"
     >
       <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_40deg,transparent_0deg,rgba(141,77,232,0.78)_62deg,transparent_132deg,rgba(111,52,197,0.76)_210deg,transparent_300deg)]" />

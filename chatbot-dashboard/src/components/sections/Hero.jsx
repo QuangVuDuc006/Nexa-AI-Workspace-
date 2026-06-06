@@ -85,7 +85,7 @@ export function Hero() {
           />
         </Suspense>
       )}
-      {!mobilePerformanceMode && <OrbitalGlow className="left-1/2 top-[330px] h-[360px] w-[360px] -translate-x-1/2" />}
+      <OrbitalGlow className="left-1/2 top-[330px] h-[360px] w-[360px] -translate-x-1/2" />
 
       <motion.div
         className="relative z-10 mx-auto grid max-w-4xl justify-items-center pt-14 text-center sm:pt-16 md:pt-20"

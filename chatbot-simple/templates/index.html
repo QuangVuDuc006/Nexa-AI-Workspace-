@@ -27,7 +27,7 @@
             document.documentElement.dataset.theme = theme;
         }());
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=image-preview-1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=workspace-mobile-4">
 </head>
 <body
     data-user-id="{{ current_user.id if current_user else 'guest' }}"
@@ -148,16 +148,16 @@
                     <button class="icon-button attach-button" type="button" aria-label="Attach file">
                         <span class="material-symbols-outlined">add</span>
                     </button>
-                    <textarea class="message-input" rows="1" placeholder="Ask anything..." aria-label="Message"></textarea>
+                    <textarea class="message-input" rows="1" placeholder="Ask Nexa AI..." aria-label="Message"></textarea>
                     <label class="active-model-switcher composer-model-switcher" title="Active AI provider and model">
                         <span class="active-model-prefix">Using</span>
                         <select class="active-provider-select" aria-label="Switch active AI model">
                             <option value="">No Model Selected</option>
                         </select>
                     </label>
-                    <button class="stop-button" type="button" hidden>
+                    <button class="stop-button" type="button" aria-label="Stop generating" hidden>
                         <span class="material-symbols-outlined">stop</span>
-                        <span>Stop</span>
+                        <span class="stop-button-label">Stop</span>
                     </button>
                     <button class="send-button" type="submit" aria-label="Send message" disabled>
                         <span class="material-symbols-outlined">send</span>
@@ -312,9 +312,7 @@
 
     <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="{{ url_for('static', filename='frontend/api/client.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='frontend/uploads/files.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='chat.js') }}?v=image-preview-1" defer></script>
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}?v=workspace-modules-1"></script>
     <script type="module" src="{{ url_for('static', filename='firebase-auth.js') }}"></script>
 </body>
 </html>
