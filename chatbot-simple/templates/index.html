@@ -27,7 +27,7 @@
             document.documentElement.dataset.theme = theme;
         }());
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=phase7-sidebar-personalize-1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=sidebar-logo-focus-fix-1">
 </head>
 <body
     data-user-id="{{ current_user.id if current_user else 'guest' }}"
@@ -49,6 +49,12 @@
                     <img class="brand-logo sidebar-logo sidebar-logo-expanded" src="{{ url_for('static', filename='assets/Normal.png') }}" alt="Nexa AI logo">
                     <img class="brand-logo sidebar-logo sidebar-logo-collapsed" src="{{ url_for('static', filename='assets/Hover.png') }}" alt="" aria-hidden="true">
                 </a>
+                <button class="icon-button sidebar-toggle-lock sidebar-toggle-dark" type="button" aria-label="Expand sidebar" aria-pressed="false">
+                    <span class="sidebar-toggle-glyph" aria-hidden="true"></span>
+                </button>
+                <button class="icon-button sidebar-toggle-lock sidebar-toggle-light" type="button" aria-label="Expand sidebar" aria-pressed="false">
+                    <span class="sidebar-toggle-glyph" aria-hidden="true"></span>
+                </button>
                 <button class="icon-button sidebar-close-button" type="button" aria-label="Close sidebar">
                     <span class="material-symbols-outlined">close</span>
                 </button>
@@ -94,10 +100,6 @@
             </section>
 
             <footer class="sidebar-bottom">
-                <button class="sidebar-bottom-link sidebar-toggle-lock" type="button" aria-label="Expand sidebar" aria-pressed="false">
-                    <span class="material-symbols-outlined">keyboard_double_arrow_right</span>
-                    <span class="sidebar-item-label">Expand sidebar</span>
-                </button>
                 <a class="sidebar-bottom-link sidebar-logout" href="{{ url_for('logout') if current_user else url_for('login') }}" data-firebase-logout>
                     <span class="material-symbols-outlined">{{ 'logout' if current_user else 'login' }}</span>
                     <span class="sidebar-item-label">{{ 'Logout' if current_user else 'Login' }}</span>

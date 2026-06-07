@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
         mobileMenuButton: document.querySelector(".mobile-menu-button"),
         sidebarCloseButton: document.querySelector(".sidebar-close-button"),
         sidebarScrim: document.querySelector(".sidebar-scrim"),
-        sidebarToggleButton: document.querySelector(".sidebar-toggle-lock"),
+        sidebarToggleButtons: Array.from(document.querySelectorAll(".sidebar-toggle-lock")),
         settingsDialog: document.querySelector(".settings-dialog"),
         settingsCloseButton: document.querySelector(".dialog-close-button"),
         personalizationDialog: document.querySelector(".personalization-dialog"),
@@ -1263,15 +1263,16 @@ document.addEventListener("DOMContentLoaded", () => {
             els.clearAllButton.disabled = state.conversations.length === 0;
         }
 
-        if (els.sidebarToggleButton) {
+        if (els.sidebarToggleButtons.length > 0) {
             const isExpanded = document.body.classList.contains("sidebar-expanded");
             const nextLabel = isExpanded ? "Collapse sidebar" : "Expand sidebar";
-            els.sidebarToggleButton.setAttribute("aria-label", nextLabel);
-            els.sidebarToggleButton.setAttribute("aria-pressed", String(sidebarPinnedOpen));
-            els.sidebarToggleButton.innerHTML = `
-                <span class="material-symbols-outlined">${isExpanded ? "keyboard_double_arrow_left" : "keyboard_double_arrow_right"}</span>
-                <span class="sidebar-item-label">${nextLabel}</span>
-            `;
+            els.sidebarToggleButtons.forEach((button) => {
+                button.setAttribute("aria-label", nextLabel);
+                button.setAttribute("aria-pressed", String(sidebarPinnedOpen));
+                button.innerHTML = `
+                    <span class="sidebar-toggle-glyph" aria-hidden="true"></span>
+                `;
+            });
         }
 
         renderActiveProviderSwitcher();
@@ -3049,18 +3050,8 @@ document.addEventListener("DOMContentLoaded", () => {
         els.mobileMenuButton?.addEventListener("click", () => setSidebarOpen(true));
         els.sidebarCloseButton?.addEventListener("click", () => setSidebarOpen(false));
         els.sidebarScrim?.addEventListener("click", () => setSidebarOpen(false));
-        els.sidebarToggleButton?.addEventListener("click", toggleSidebarPinnedOpen);
-        els.sidebar?.addEventListener("mouseenter", () => setDesktopSidebarExpanded(true));
-        els.sidebar?.addEventListener("mouseleave", () => {
-            if (!sidebarPinnedOpen) {
-                setDesktopSidebarExpanded(false);
-            }
-        });
-        els.sidebar?.addEventListener("focusin", () => setDesktopSidebarExpanded(true));
-        els.sidebar?.addEventListener("focusout", (event) => {
-            if (!sidebarPinnedOpen && !els.sidebar.contains(event.relatedTarget) && !els.sidebar.matches(":hover")) {
-                setDesktopSidebarExpanded(false);
-            }
+        els.sidebarToggleButtons.forEach((button) => {
+            button.addEventListener("click", toggleSidebarPinnedOpen);
         });
 
         els.attachmentTray.addEventListener("click", (event) => {

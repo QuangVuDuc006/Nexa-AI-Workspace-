@@ -276,9 +276,20 @@ svg {
 
 ::selection {
     color: #ffffff;
-    background: var(--primary-hot);
+    background: rgba(96, 165, 250, 0.5);
+    -webkit-text-fill-color: #ffffff;
 }
 
+html[data-theme="light"] ::selection {
+    color: #ffffff;
+    background: rgba(17, 24, 39, 0.82);
+    -webkit-text-fill-color: #ffffff;
+}
+
+.welcome-copy ::selection,
+.welcome-greeting::selection,
+.welcome-prompt::selection,
+.suggestions ::selection,
 .message ::selection,
 .message-content ::selection,
 .message-attachments ::selection,
@@ -294,6 +305,10 @@ input::selection {
     -webkit-text-fill-color: #ffffff;
 }
 
+html[data-theme="light"] .welcome-copy ::selection,
+html[data-theme="light"] .welcome-greeting::selection,
+html[data-theme="light"] .welcome-prompt::selection,
+html[data-theme="light"] .suggestions ::selection,
 html[data-theme="light"] .message ::selection,
 html[data-theme="light"] .message-content ::selection,
 html[data-theme="light"] .message-attachments ::selection,
@@ -421,6 +436,7 @@ body.sidebar-expanded .sidebar {
 }
 
 .sidebar-header {
+    position: relative;
     width: 100%;
     justify-content: center;
     min-height: 48px;
@@ -447,8 +463,9 @@ body.sidebar-expanded .sidebar {
 }
 
 body.sidebar-expanded .brand-lockup {
-    width: 100%;
-    justify-content: center;
+    width: auto;
+    flex: 1 1 auto;
+    justify-content: flex-start;
 }
 
 .brand-logo {
@@ -540,6 +557,97 @@ body.sidebar-expanded .sidebar-logo-collapsed {
 
 .sidebar-close-button {
     display: none;
+}
+
+.sidebar-toggle-lock {
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--sidebar-active-border);
+    color: var(--sidebar-text);
+    background: rgba(15, 15, 15, 0.86);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+.sidebar-toggle-light {
+    display: none;
+    color: #151515;
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(0, 0, 0, 0.14);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+}
+
+html[data-theme="light"] .sidebar-toggle-dark {
+    display: none;
+}
+
+html[data-theme="light"] .sidebar-toggle-light {
+    display: inline-grid;
+}
+
+.sidebar-toggle-glyph {
+    position: relative;
+    width: 18px;
+    height: 16px;
+    display: block;
+    border: 2px solid currentColor;
+    border-radius: 5px;
+}
+
+.sidebar-toggle-glyph::before {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 6px;
+    width: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    content: "";
+}
+
+body:not(.sidebar-expanded) .sidebar-toggle-lock {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 3;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.92);
+    transition:
+        opacity var(--sidebar-fade-duration) var(--ease),
+        transform 180ms var(--ease),
+        background 180ms var(--ease),
+        border-color 180ms var(--ease);
+}
+
+body:not(.sidebar-expanded) .sidebar-brand:hover ~ .sidebar-toggle-lock,
+body:not(.sidebar-expanded) .sidebar-toggle-lock:hover,
+body:not(.sidebar-expanded) .sidebar-toggle-lock:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+body:not(.sidebar-expanded) .sidebar-brand:hover .sidebar-logo-collapsed,
+body:not(.sidebar-expanded) .sidebar-header:has(.sidebar-toggle-lock:hover) .sidebar-logo-collapsed,
+body:not(.sidebar-expanded) .sidebar-header:has(.sidebar-toggle-lock:focus-visible) .sidebar-logo-collapsed {
+    opacity: 0;
+}
+
+body.sidebar-expanded .sidebar-header {
+    justify-content: space-between;
+}
+
+body.sidebar-expanded .sidebar-toggle-lock {
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+}
+
+body.sidebar-expanded .sidebar-toggle-lock:hover,
+body:not(.sidebar-expanded) .sidebar-toggle-lock:hover {
+    color: var(--primary-fixed);
+    background: var(--sidebar-hover-bg);
 }
 
 .new-chat-button,
@@ -786,6 +894,7 @@ button.sidebar-bottom-link {
 
 .sidebar-nav-item:focus-visible,
 .sidebar-bottom-link:focus-visible,
+.sidebar-toggle-lock:focus-visible,
 .sidebar-new-chat:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
@@ -3177,6 +3286,12 @@ body.home-empty .composer {
         top: 50%;
         right: 0;
         transform: translateY(-50%);
+    }
+
+    .sidebar-toggle-lock,
+    body.sidebar-expanded .sidebar-toggle-lock,
+    body:not(.sidebar-expanded) .sidebar-toggle-lock {
+        display: none;
     }
 
     .sidebar-scrim {
