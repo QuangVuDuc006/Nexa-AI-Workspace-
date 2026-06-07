@@ -1,4 +1,4 @@
-const CITATION_MARKER_RE = /\[\[(?:cite|source):(\d+)\]\]/g;
+const CITATION_MARKER_RE = /\[\[(?:cite|source):(\d+)\]\]|\[(\d+)\]/g;
 
 export function normalizeCitationId(value) {
     return String(value ?? "").trim();
@@ -47,53 +47,13 @@ export function citationTitle(citation) {
     return parts.join(" - ");
 }
 
-export function citationHref(citation) {
-    const explicitUrl = String(citation?.url || "").trim();
-
-    if (explicitUrl) {
-        return explicitUrl;
-    }
-
-    const documentId = String(citation?.document_id || citation?.documentId || "").trim();
-
-    if (!documentId) {
-        return "";
-    }
-
-    const pageNumber = citation?.page_number ?? citation?.pageNumber;
-    let href = `/api/documents/${encodeURIComponent(documentId)}/content`;
-
-    if (pageNumber) {
-        href += `#page=${encodeURIComponent(String(pageNumber))}`;
-    }
-
-    return href;
-}
-
-export function createCitationPill(citation, documentRef = document) {
-    const href = citationHref(citation);
-    const pill = documentRef.createElement(href ? "a" : "span");
-    pill.className = "citation-pill";
-    pill.title = citationTitle(citation);
-
-    if (href) {
-        pill.href = href;
-        pill.target = "_blank";
-        pill.rel = "noreferrer";
-    } else {
-        pill.setAttribute("role", "note");
-    }
-
-    const icon = documentRef.createElement("span");
-    icon.className = "citation-pill-icon";
-    icon.setAttribute("aria-hidden", "true");
-    pill.appendChild(icon);
-
-    const label = documentRef.createElement("span");
-    label.textContent = citationDisplayText(citation);
-    pill.appendChild(label);
-
-    return pill;
+export function createCitationReference(citation, citationId = "", documentRef = document) {
+    const reference = documentRef.createElement("span");
+    reference.className = "citation-ref";
+    reference.title = citationTitle(citation);
+    reference.setAttribute("aria-hidden", "true");
+    reference.textContent = "";
+    return reference;
 }
 
 export function citationMarkerParts(text, citations = []) {
@@ -101,11 +61,12 @@ export function citationMarkerParts(text, citations = []) {
     const parts = [];
     let cursor = 0;
     CITATION_MARKER_RE.lastIndex = 0;
-    String(text || "").replace(CITATION_MARKER_RE, (match, id, offset) => {
+    String(text || "").replace(CITATION_MARKER_RE, (match, markerId, bareId, offset) => {
         if (offset > cursor) {
             parts.push({ type: "text", text: String(text || "").slice(cursor, offset) });
         }
 
+        const id = markerId || bareId;
         const citation = lookup.get(normalizeCitationId(id));
 
         if (citation) {
@@ -140,7 +101,7 @@ export function replaceCitationMarkers(root, citations = [], documentRef = docum
         acceptNode(node) {
             const parent = node.parentElement;
 
-            if (!parent || parent.closest("code, pre, kbd, samp, .katex, .math-inline, .math-block, .citation-pill")) {
+            if (!parent || parent.closest("code, pre, kbd, samp, .katex, .math-inline, .math-block, .citation-ref")) {
                 return NodeFilter.FILTER_REJECT;
             }
 
@@ -165,7 +126,7 @@ export function replaceCitationMarkers(root, citations = [], documentRef = docum
 
         parts.forEach((part) => {
             if (part.type === "citation") {
-                fragment.appendChild(createCitationPill(part.citation, documentRef));
+                fragment.appendChild(createCitationReference(part.citation, part.citationId, documentRef));
                 replacements += 1;
             } else {
                 fragment.appendChild(documentRef.createTextNode(part.text));

@@ -99,6 +99,26 @@ def test_context_instructs_reference_resolution_for_vietnamese_followups(client)
     assert "'làm tiếp'" in context
 
 
+def test_study_mode_query_includes_detailed_answer_instructions(client):
+    login(client)
+    context = build_conversation_context("conv-new", "Important content in this file")
+
+    assert "Answer mode: detailed_study_mode" in context
+    assert "Overview" in context
+    assert "Key concepts" in context
+    assert "Why each concept matters" in context
+    assert "Common mistakes, exam notes" in context
+    assert "Short final takeaway" in context
+
+
+def test_normal_short_factual_question_can_remain_concise(client):
+    login(client)
+    context = build_conversation_context("conv-new", "What is 2+2?")
+
+    assert "Answer mode: detailed_study_mode" not in context
+    assert "For simple factual requests, a concise direct answer is acceptable." in context
+
+
 def test_context_truncates_long_conversation_to_newest_messages(client):
     login(client)
     db = db_session()

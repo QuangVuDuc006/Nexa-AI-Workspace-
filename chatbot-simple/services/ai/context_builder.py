@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import unicodedata
 
 from sqlalchemy import and_, select
 from sqlalchemy.orm import selectinload
@@ -11,16 +12,65 @@ from services.memory_service import get_memory_context
 
 SYSTEM_PROMPT = (
     "You are Nexa AI, a helpful AI workspace assistant.\n"
+    "Default to useful depth: explain concepts clearly, include definitions, key ideas, examples, implications, "
+    "and connections between related ideas when they help the user understand. Be direct, but not sparse. "
+    "Avoid one-sentence or overly short answers unless the user asks for brevity or asks a simple factual question. "
+    "For simple factual requests, a concise direct answer is acceptable.\n"
+    "Before writing the final answer, internally organize it around the main idea, supporting details, examples, "
+    "and a conclusion. Do not expose this outline unless it improves the answer.\n"
     "Answer using uploaded document context when relevant. Retrieved sources are labeled like [[source:1]]. "
     "Use only the provided source labels for citations. "
     "Cite claims from uploaded documents inline using citation markers like [[cite:1]] immediately after the sentence "
     "that uses that source. Do not create a final Sources section. Do not invent citation ids. "
+    "Do not write plain bracket citations like [1] or [2]. "
     "Only use citation ids that appear in Retrieved document context. If the retrieved context is insufficient, "
     "say the uploaded documents do not contain enough information.\n"
     "Resolve references in the current user message such as 'nó', 'cái đó', "
     "'ý trên', 'bước trước', or 'làm tiếp' using the conversation history."
 )
 MINIMAL_SYSTEM_PROMPT = "You are Nexa AI."
+RAG_ANSWER_INSTRUCTIONS = (
+    "Retrieved-document answer rules:\n"
+    "- Use retrieved chunks as evidence, but explain the topic beyond simply copying chunks.\n"
+    "- Group related chunks into coherent sections instead of listing isolated snippets.\n"
+    "- Highlight the important points from uploaded files and connect them to the user's question.\n"
+    "- Cite claims from uploaded documents inline using markers like [[cite:1]] immediately after the sentence "
+    "that uses that source.\n"
+    "- Use only citation ids that appear in Retrieved document context. Do not invent citation ids.\n"
+    "- Do not write plain bracket citations like [1] or [2].\n"
+    "- Do not create a final Sources section; the interface renders sources from inline citations.\n"
+    "- If retrieved context is insufficient, say the uploaded documents do not contain enough information.\n"
+    "- Do not invent content not supported by the file. You may add general explanation only when it is clearly "
+    "framed as background and does not contradict the file.\n"
+    "- Do not only list file snippets or answer with generic filler.\n"
+    "- If the user asks for important content from a file, provide a structured, learning-oriented explanation.\n"
+    "- Unless the user asks for short output, each major point should have at least 2-4 sentences."
+)
+DETAILED_STUDY_INSTRUCTIONS = (
+    "Answer mode: detailed_study_mode\n"
+    "The user is asking for study-oriented explanation. Use a structured educational answer with:\n"
+    "- Overview\n"
+    "- Key concepts\n"
+    "- Why each concept matters\n"
+    "- Example or intuition\n"
+    "- Common mistakes, exam notes, demo notes, or practical-use points when relevant\n"
+    "- Short final takeaway\n"
+    "Prefer thorough, step-by-step explanation. If the material appears academic, call out likely exam or demo points."
+)
+STUDY_MODE_PATTERNS = (
+    "noi dung quan trong",
+    "giai thich",
+    "phan tich",
+    "hoc phan nay",
+    "tom tat de on thi",
+    "on thi",
+    "explain",
+    "important points",
+    "important content",
+    "summarize this file",
+    "summary of this file",
+    "study this",
+)
 MAX_FILE_CONTENT_CHARS = 20_000
 MAX_CONTEXT_LENGTH = 40_000
 TRUNCATION_SUFFIX = "\n[Truncated for context length.]"
@@ -30,6 +80,21 @@ ROLE_LABELS = {
     "assistant": "Assistant",
 }
 logger = logging.getLogger(__name__)
+
+
+def normalize_intent_text(value):
+    text = unicodedata.normalize("NFKD", str(value or "").lower())
+    text = "".join(character for character in text if not unicodedata.combining(character))
+    return " ".join(text.split())
+
+
+def detect_answer_mode(user_message):
+    normalized = normalize_intent_text(user_message)
+
+    if any(pattern in normalized for pattern in STUDY_MODE_PATTERNS):
+        return "detailed_study_mode"
+
+    return "normal"
 
 
 def truncate_text(text, max_length):
@@ -150,10 +215,21 @@ def render_memory_values(memories):
     return values
 
 
-def compose_context(summary, history_text, current_user_message, personalization_text="", memories=None, rag_context_text=""):
+def compose_context(
+    summary,
+    history_text,
+    current_user_message,
+    personalization_text="",
+    memories=None,
+    rag_context_text="",
+    answer_mode="normal",
+):
     sections = [
         f"System:\n{SYSTEM_PROMPT}",
     ]
+
+    if answer_mode == "detailed_study_mode":
+        sections.append(DETAILED_STUDY_INSTRUCTIONS)
 
     personalization_text = str(personalization_text or "").strip()
     if personalization_text:
@@ -170,6 +246,7 @@ def compose_context(summary, history_text, current_user_message, personalization
     rag_context_text = str(rag_context_text or "").strip()
 
     if rag_context_text:
+        sections.append(RAG_ANSWER_INSTRUCTIONS)
         sections.append(f"Retrieved document context:\n{rag_context_text}")
 
     sections.append(f"Current user message:\n{current_user_message}")
@@ -212,8 +289,9 @@ def fit_current_message(
     personalization_text="",
     memories=None,
     rag_context_text="",
+    answer_mode="normal",
 ):
-    context = compose_context(summary, "", current_user_message, personalization_text, memories, rag_context_text)
+    context = compose_context(summary, "", current_user_message, personalization_text, memories, rag_context_text, answer_mode)
 
     if len(context) <= max_context_length:
         return summary, current_user_message
@@ -221,17 +299,17 @@ def fit_current_message(
     if summary:
         summary = longest_fitting_text(
             summary,
-            lambda value: compose_context(value, "", current_user_message, personalization_text, memories, rag_context_text),
+            lambda value: compose_context(value, "", current_user_message, personalization_text, memories, rag_context_text, answer_mode),
             max_context_length,
         )
-        context = compose_context(summary, "", current_user_message, personalization_text, memories, rag_context_text)
+        context = compose_context(summary, "", current_user_message, personalization_text, memories, rag_context_text, answer_mode)
 
     if len(context) <= max_context_length:
         return summary, current_user_message
 
     current_user_message = longest_fitting_text(
         current_user_message,
-        lambda value: compose_context(summary, "", value, personalization_text, memories, rag_context_text),
+        lambda value: compose_context(summary, "", value, personalization_text, memories, rag_context_text, answer_mode),
         max_context_length,
     )
     return summary, current_user_message
@@ -245,13 +323,22 @@ def fit_history(
     personalization_text="",
     memories=None,
     rag_context_text="",
+    answer_mode="normal",
 ):
     selected_newest_first = []
 
     for rendered in reversed(rendered_messages):
         candidate_newest_first = selected_newest_first + [rendered]
         history_text = "\n\n".join(reversed(candidate_newest_first))
-        candidate = compose_context(summary, history_text, current_user_message, personalization_text, memories, rag_context_text)
+        candidate = compose_context(
+            summary,
+            history_text,
+            current_user_message,
+            personalization_text,
+            memories,
+            rag_context_text,
+            answer_mode,
+        )
 
         if len(candidate) <= max_context_length:
             selected_newest_first = candidate_newest_first
@@ -262,7 +349,15 @@ def fit_history(
 
         truncated = longest_fitting_text(
             rendered,
-            lambda value: compose_context(summary, value, current_user_message, personalization_text, memories, rag_context_text),
+            lambda value: compose_context(
+                summary,
+                value,
+                current_user_message,
+                personalization_text,
+                memories,
+                rag_context_text,
+                answer_mode,
+            ),
             max_context_length,
         )
 
@@ -285,6 +380,7 @@ def build_conversation_context(
     owns_session = db is None
     db = db or db_session()
     max_context_length = max(1, int(max_context_length or MAX_CONTEXT_LENGTH))
+    answer_mode = detect_answer_mode(user_message)
 
     try:
         conversation = get_conversation(db, conversation_id, user_id)
@@ -314,6 +410,7 @@ def build_conversation_context(
             personalization_text,
             memories,
             rag_context_text,
+            answer_mode,
         )
         history_text = fit_history(
             rendered_messages,
@@ -323,8 +420,17 @@ def build_conversation_context(
             personalization_text,
             memories,
             rag_context_text,
+            answer_mode,
         )
-        context = compose_context(summary, history_text, fitted_user_message, personalization_text, memories, rag_context_text)
+        context = compose_context(
+            summary,
+            history_text,
+            fitted_user_message,
+            personalization_text,
+            memories,
+            rag_context_text,
+            answer_mode,
+        )
 
         if len(context) > max_context_length:
             summary, fitted_user_message = fit_current_message(
@@ -334,8 +440,9 @@ def build_conversation_context(
                 personalization_text,
                 memories,
                 rag_context_text,
+                answer_mode,
             )
-            context = compose_context(summary, "", fitted_user_message, personalization_text, memories, rag_context_text)
+            context = compose_context(summary, "", fitted_user_message, personalization_text, memories, rag_context_text, answer_mode)
 
         if len(context) > max_context_length:
             context = compact_current_message_context(str(user_message or ""), max_context_length)

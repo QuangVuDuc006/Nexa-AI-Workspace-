@@ -120,8 +120,8 @@ def create_document_with_chunks(db, user_id, filename, mime_type, pages, setting
     save_document_source_file(settings, user_id, document, source_bytes)
     chunks = chunk_text(
         pages,
-        chunk_size_chars=getattr(settings, "rag_chunk_size_chars", 3500),
-        overlap_chars=getattr(settings, "rag_chunk_overlap_chars", 500),
+        chunk_size_chars=getattr(settings, "rag_chunk_size_chars", 1500),
+        overlap_chars=getattr(settings, "rag_chunk_overlap_chars", 250),
     )
 
     if not chunks:

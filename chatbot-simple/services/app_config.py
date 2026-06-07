@@ -131,6 +131,6 @@ def load_settings(app_root):
         embedding_model=env_value("EMBEDDING_MODEL", "local-hash-embedding"),
         embedding_api_key=env_value("EMBEDDING_API_KEY"),
         rag_top_k=max(1, env_int("RAG_TOP_K", 5)),
-        rag_chunk_size_chars=max(500, env_int("RAG_CHUNK_SIZE_CHARS", 3500)),
-        rag_chunk_overlap_chars=max(0, env_int("RAG_CHUNK_OVERLAP_CHARS", 500)),
+        rag_chunk_size_chars=max(500, env_int("RAG_CHUNK_SIZE_CHARS", 1500)),
+        rag_chunk_overlap_chars=max(0, env_int("RAG_CHUNK_OVERLAP_CHARS", 250)),
     )

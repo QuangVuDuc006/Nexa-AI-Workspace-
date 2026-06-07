@@ -4,8 +4,9 @@ from types import SimpleNamespace
 from sqlalchemy import func, select
 
 from conftest import login
+from services.app_config import load_settings
 from services.database import Document, DocumentChunk, db_session
-from services.rag.chunking import chunk_text
+from services.rag.chunking import DEFAULT_CHUNK_OVERLAP_CHARS, DEFAULT_CHUNK_SIZE_CHARS, chunk_text
 
 
 def test_chunk_metadata_includes_start_and_end_chars():
@@ -20,6 +21,22 @@ def test_chunk_metadata_captures_markdown_heading_section_title():
     chunks = chunk_text("## Installation\nRun the setup command.\n\nUsage\nAsk a question.", chunk_size_chars=500, overlap_chars=0)
 
     assert chunks[0]["section_title"] == "Installation"
+
+
+def test_rag_config_defaults_are_tuned_for_moderate_context(tmp_path, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "testing")
+    monkeypatch.setenv("SECRET_KEY", "test-secret")
+
+    for name in ("RAG_TOP_K", "RAG_CHUNK_SIZE_CHARS", "RAG_CHUNK_OVERLAP_CHARS"):
+        monkeypatch.delenv(name, raising=False)
+
+    settings = load_settings(tmp_path)
+
+    assert settings.rag_top_k == 5
+    assert settings.rag_chunk_size_chars == 1500
+    assert settings.rag_chunk_overlap_chars == 250
+    assert DEFAULT_CHUNK_SIZE_CHARS == 1500
+    assert DEFAULT_CHUNK_OVERLAP_CHARS == 250
 
 
 def upload_document(client, token, content, filename="notes.txt"):
@@ -139,6 +156,11 @@ def test_chat_route_includes_retrieved_rag_context(app_module, monkeypatch):
         assert response.status_code == 200
         assert routed_messages
         assert "Retrieved document context:" in routed_messages[0]
+        assert "Retrieved-document answer rules:" in routed_messages[0]
+        assert "Use retrieved chunks as evidence" in routed_messages[0]
+        assert "Group related chunks into coherent sections" in routed_messages[0]
+        assert "Do not only list file snippets" in routed_messages[0]
+        assert "each major point should have at least 2-4 sentences" in routed_messages[0]
         assert "Use only the provided source labels" in routed_messages[0]
         assert "Do not create a final Sources section" in routed_messages[0]
         assert "[[source:1]] notes.txt - chunk 1 - chars 0-" in routed_messages[0]

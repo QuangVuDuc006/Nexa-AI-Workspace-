@@ -27,7 +27,7 @@
             document.documentElement.dataset.theme = theme;
         }());
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=sidebar-logo-focus-fix-1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=output-column-width-1">
 </head>
 <body
     data-user-id="{{ current_user.id if current_user else 'guest' }}"
@@ -374,7 +374,7 @@
 
     <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
 
-    <script type="module" src="{{ url_for('static', filename='js/main.js') }}?v=workspace-modules-2"></script>
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}?v=math-render-guard-1"></script>
     <script type="module" src="{{ url_for('static', filename='firebase-auth.js') }}"></script>
 </body>
 </html>

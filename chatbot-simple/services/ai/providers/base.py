@@ -55,7 +55,9 @@ def build_user_content(user_message, attachments):
 
     sections.extend([
         "",
-        "Use the attached text files as context. If a file is unrelated, ignore it.",
+        "Use the attached text files as context. If a file is unrelated, ignore it. "
+        "When the user asks about the files, explain the important ideas in a structured, educational way "
+        "instead of giving only a short summary.",
     ])
 
     for attachment in text_attachments:

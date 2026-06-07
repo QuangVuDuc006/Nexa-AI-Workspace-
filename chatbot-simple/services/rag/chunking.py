@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 
 
-DEFAULT_CHUNK_SIZE_CHARS = 3500
-DEFAULT_CHUNK_OVERLAP_CHARS = 500
+DEFAULT_CHUNK_SIZE_CHARS = 1500
+DEFAULT_CHUNK_OVERLAP_CHARS = 250
 MAX_SOURCE_EXCERPT_CHARS = 300
 MARKDOWN_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$")
 

@@ -57,7 +57,7 @@ export function findMathToken(source) {
                 const raw = source.slice(start + delimiter.open.length, end).trim();
                 const beforeClose = source[end - 1] || "";
 
-                if (raw && (delimiter.open !== "$" || !/\s/.test(beforeClose))) {
+                if (raw && (delimiter.open !== "$" || !/\s/.test(beforeClose)) && isLikelyMathContent(raw)) {
                     const token = {
                         start,
                         end: end + delimiter.close.length,
@@ -68,6 +68,9 @@ export function findMathToken(source) {
                     if (!firstToken || token.start < firstToken.start) {
                         firstToken = token;
                     }
+                } else {
+                    start = source.indexOf(delimiter.open, start + delimiter.open.length);
+                    continue;
                 }
             }
 
@@ -76,6 +79,22 @@ export function findMathToken(source) {
     }
 
     return firstToken;
+}
+
+function isLikelyMathContent(raw) {
+    const text = String(raw || "").trim();
+
+    if (!text) {
+        return false;
+    }
+
+    const latexCommand = /\\(?:begin|end|frac|dfrac|tfrac|sqrt|det|operatorname|lambda|alpha|beta|gamma|delta|theta|pi|sigma|mu|mathbb|mathrm|mathbf|mathcal|text|times|cdot|neq|ne|leq?|geq?|approx|div|pm|mp|sum|prod|int|lim|infty|left|right|to|Rightarrow|Leftrightarrow|sin|cos|tan|log|ln)\b/.test(text);
+    const unicodeMath = /[≠≤≥≈×÷±∓√∑∫∞→⇒⇔]/.test(text);
+    const equation = /(?:[A-Za-z0-9)\]}]|\\[a-zA-Z]+)\s*(?:=|≠|≤|≥|≈|<|>|\\ne|\\le|\\ge|\\approx)\s*(?:[A-Za-z0-9\\({\[])/.test(text);
+    const arithmetic = /(?:[A-Za-z0-9)\]}])\s*(?:[+\-*\/^_])\s*(?:[A-Za-z0-9\\({\[])/.test(text);
+    const simpleAtom = /^(?:[A-Za-z]|[0-9]+(?:\.[0-9]+)?|\\[a-zA-Z]+)(?:\s*(?:[_^]\{?[A-Za-z0-9]+\}?))*$/.test(text);
+
+    return latexCommand || unicodeMath || equation || arithmetic || simpleAtom;
 }
 
 function getDelimitedMathSource(source, displayMode) {
@@ -230,19 +249,7 @@ export function renderKatexMathInElement(element) {
 
     nodes.forEach(replaceMathTextNode);
 
-    if (!window.renderMathInElement || element.querySelector(".katex")) {
-        return;
-    }
-
-    window.renderMathInElement(element, {
-        delimiters: [
-            { left: "$$", right: "$$", display: true },
-            { left: "\\[", right: "\\]", display: true },
-            { left: "\\(", right: "\\)", display: false },
-            { left: "$", right: "$", display: false },
-        ],
-        throwOnError: false,
-    });
+    return;
 }
 
 export function renderAllAssistantMath() {
