@@ -27,7 +27,7 @@
             document.documentElement.dataset.theme = theme;
         }());
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=bottom-input-mask-1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=phase7-sidebar-personalize-1">
 </head>
 <body
     data-user-id="{{ current_user.id if current_user else 'guest' }}"
@@ -76,6 +76,10 @@
                     <span class="material-symbols-outlined">hub</span>
                     <span class="sidebar-item-label">Provider Settings</span>
                 </button>
+                <button class="sidebar-nav-item" type="button" data-action="open-personalization-settings">
+                    <span class="material-symbols-outlined">manage_accounts</span>
+                    <span class="sidebar-item-label">Cá nhân hóa</span>
+                </button>
                 <button class="sidebar-nav-item" type="button" data-action="open-settings">
                     <span class="material-symbols-outlined">settings</span>
                     <span class="sidebar-item-label">Settings</span>
@@ -90,6 +94,10 @@
             </section>
 
             <footer class="sidebar-bottom">
+                <button class="sidebar-bottom-link sidebar-toggle-lock" type="button" aria-label="Expand sidebar" aria-pressed="false">
+                    <span class="material-symbols-outlined">keyboard_double_arrow_right</span>
+                    <span class="sidebar-item-label">Expand sidebar</span>
+                </button>
                 <a class="sidebar-bottom-link sidebar-logout" href="{{ url_for('logout') if current_user else url_for('login') }}" data-firebase-logout>
                     <span class="material-symbols-outlined">{{ 'logout' if current_user else 'login' }}</span>
                     <span class="sidebar-item-label">{{ 'Logout' if current_user else 'Login' }}</span>
@@ -125,9 +133,6 @@
                     </button>
                     <button class="icon-button theme-toggle-button" type="button" aria-label="Toggle theme">
                         <span class="theme-toggle-fallback" aria-hidden="true">Moon</span>
-                    </button>
-                    <button class="icon-button settings-button" type="button" aria-label="Open settings">
-                        <span class="material-symbols-outlined">settings</span>
                     </button>
                     <span class="profile-chip" aria-hidden="true" title="{{ current_user.email if current_user else 'Guest' }}">
                         {% if current_user and current_user.photo_url %}
@@ -189,46 +194,6 @@
                         <button type="button" data-theme-option="system">System</button>
                         <button type="button" data-theme-option="light">Light</button>
                         <button type="button" data-theme-option="dark">Dark</button>
-                    </div>
-                </section>
-
-                <section class="settings-section personalization-settings-section" data-settings-section="personalization" aria-labelledby="personalizationSettingsTitle">
-                    <div class="settings-section-heading">
-                        <div>
-                            <h3 id="personalizationSettingsTitle">Cá nhân hóa</h3>
-                            <p class="settings-help">Cho Nexa biết cách bạn muốn được hỗ trợ. Nexa cũng có thể ghi nhớ các thông tin bạn yêu cầu hoặc các thói quen lặp lại trong quá trình sử dụng.</p>
-                        </div>
-                    </div>
-
-                    <form class="personalization-form">
-                        <label class="form-field">
-                            <span>Cách Nexa phản hồi</span>
-                            <textarea class="personalization-textarea" rows="5" maxlength="4000" placeholder="Ví dụ: Trả lời bằng tiếng Việt, giải thích từng bước, ưu tiên ví dụ code, nói ngắn gọn khi có thể..."></textarea>
-                        </label>
-                        <p class="settings-help">Viết cách bạn muốn Nexa phản hồi. Nội dung này sẽ được dùng để cá nhân hóa tất cả cuộc trò chuyện và mọi provider.</p>
-                        <div class="dialog-actions personalization-actions">
-                            <span class="personalization-status" role="status"></span>
-                            <button class="primary-button" type="submit">Lưu</button>
-                        </div>
-                    </form>
-
-                    <div class="memory-management">
-                        <div class="saved-provider-heading">
-                            <strong>Những điều Nexa nhớ về bạn</strong>
-                            <span class="memory-count">0/30</span>
-                        </div>
-                        <div class="memory-list"></div>
-                        <form class="memory-form">
-                            <input class="memory-edit-id" type="hidden">
-                            <label class="form-field">
-                                <span>Memory</span>
-                                <textarea class="memory-input" rows="2" maxlength="1000" placeholder="Thêm điều bạn muốn Nexa nhớ..."></textarea>
-                            </label>
-                            <div class="dialog-actions memory-actions-row">
-                                <button class="secondary-button memory-cancel-edit-button" type="button" hidden>Hủy</button>
-                                <button class="primary-button memory-save-button" type="submit">Thêm memory</button>
-                            </div>
-                        </form>
                     </div>
                 </section>
 
@@ -294,6 +259,60 @@
                     </button>
                 </section>
             </div>
+        </div>
+    </section>
+
+    <section class="dialog-layer personalization-dialog" aria-hidden="true">
+        <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="personalizationDialogTitle">
+            <header class="dialog-header">
+                <div>
+                    <span class="meta-label">Workspace</span>
+                    <h2 id="personalizationDialogTitle">Cá nhân hóa</h2>
+                </div>
+                <button class="icon-button personalization-close-button" type="button" aria-label="Close personalization">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </header>
+
+            <section class="settings-section personalization-settings-section" data-settings-section="personalization" aria-labelledby="personalizationSettingsTitle">
+                <div class="settings-section-heading">
+                    <div>
+                        <h3 id="personalizationSettingsTitle">Cá nhân hóa</h3>
+                        <p class="settings-help">Cho Nexa biết cách bạn muốn được hỗ trợ. Nexa cũng có thể ghi nhớ các thông tin bạn yêu cầu hoặc các thói quen lặp lại trong quá trình sử dụng.</p>
+                    </div>
+                </div>
+
+                <form class="personalization-form">
+                    <label class="form-field">
+                        <span>Cách Nexa phản hồi</span>
+                        <textarea class="personalization-textarea" rows="5" maxlength="4000" placeholder="Ví dụ: Trả lời bằng tiếng Việt, giải thích từng bước, ưu tiên ví dụ code, nói ngắn gọn khi có thể..."></textarea>
+                    </label>
+                    <p class="settings-help">Viết cách bạn muốn Nexa phản hồi. Nội dung này sẽ được dùng để cá nhân hóa tất cả cuộc trò chuyện và mọi provider.</p>
+                    <div class="dialog-actions personalization-actions">
+                        <span class="personalization-status" role="status"></span>
+                        <button class="primary-button" type="submit">Lưu</button>
+                    </div>
+                </form>
+
+                <div class="memory-management">
+                    <div class="saved-provider-heading">
+                        <strong>Những điều Nexa nhớ về bạn</strong>
+                        <span class="memory-count">0/30</span>
+                    </div>
+                    <div class="memory-list"></div>
+                    <form class="memory-form">
+                        <input class="memory-edit-id" type="hidden">
+                        <label class="form-field">
+                            <span>Memory</span>
+                            <textarea class="memory-input" rows="2" maxlength="1000" placeholder="Thêm điều bạn muốn Nexa nhớ..."></textarea>
+                        </label>
+                        <div class="dialog-actions memory-actions-row">
+                            <button class="secondary-button memory-cancel-edit-button" type="button" hidden>Hủy</button>
+                            <button class="primary-button memory-save-button" type="submit">Thêm memory</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
         </div>
     </section>
 

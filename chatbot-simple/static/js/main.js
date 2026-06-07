@@ -1,6 +1,6 @@
 import { createApiClient } from "./api.js";
 import { createUploadsFeature } from "./features/uploads.js";
-import { initChatWorkspace } from "../chat.js?v=phase7-memory-1";
+import { initChatWorkspace } from "../chat.js?v=phase7-sidebar-personalize-1";
 
 const apiClient = createApiClient(document.body?.dataset.csrfToken || "");
 

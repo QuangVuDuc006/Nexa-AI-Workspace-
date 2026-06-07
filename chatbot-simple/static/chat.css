@@ -723,6 +723,17 @@ button.sidebar-nav-item {
     background: transparent;
 }
 
+button.sidebar-bottom-link {
+    text-align: left;
+    background: transparent;
+}
+
+.sidebar-toggle-lock[aria-pressed="true"] {
+    color: var(--primary-fixed);
+    border-color: var(--sidebar-active-border);
+    background: var(--sidebar-hover-bg);
+}
+
 .sidebar-nav-item.active {
     color: var(--primary-fixed);
     border-color: var(--sidebar-active-border);
@@ -3352,7 +3363,6 @@ body.home-empty .composer {
 
     .search-toggle-button,
     .theme-toggle-button,
-    .settings-button,
     .profile-chip {
         display: none;
     }

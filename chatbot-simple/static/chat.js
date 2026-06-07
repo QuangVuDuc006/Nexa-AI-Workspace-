@@ -80,7 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
         clearAllButton: document.querySelector(".clear-all-button"),
         searchToggleButton: document.querySelector(".search-toggle-button"),
         searchInput: document.querySelector(".conversation-search-input"),
-        settingsButton: document.querySelector(".settings-button"),
         renameChatButton: document.querySelector(".rename-chat-button"),
         themeToggleButton: document.querySelector(".theme-toggle-button"),
         activeModelPrefix: document.querySelector(".active-model-prefix"),
@@ -122,8 +121,11 @@ document.addEventListener("DOMContentLoaded", () => {
         mobileMenuButton: document.querySelector(".mobile-menu-button"),
         sidebarCloseButton: document.querySelector(".sidebar-close-button"),
         sidebarScrim: document.querySelector(".sidebar-scrim"),
+        sidebarToggleButton: document.querySelector(".sidebar-toggle-lock"),
         settingsDialog: document.querySelector(".settings-dialog"),
         settingsCloseButton: document.querySelector(".dialog-close-button"),
+        personalizationDialog: document.querySelector(".personalization-dialog"),
+        personalizationCloseButton: document.querySelector(".personalization-close-button"),
         renameDialog: document.querySelector(".rename-dialog"),
         renameCloseButton: document.querySelector(".rename-close-button"),
         renameCancelButton: document.querySelector(".rename-cancel-button"),
@@ -150,6 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const mobileSidebarQuery = window.matchMedia("(max-width: 900px)");
     const desktopSidebarQuery = window.matchMedia("(min-width: 901px)");
     let desktopSidebarCollapseTimer = null;
+    let sidebarPinnedOpen = false;
 
     let legacyConversationsForMigration = [];
     let state = loadState();
@@ -637,6 +640,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         applySidebarState();
+    }
+
+    function setSidebarPinnedOpen(isPinnedOpen) {
+        sidebarPinnedOpen = Boolean(isPinnedOpen);
+        setDesktopSidebarExpanded(sidebarPinnedOpen, true);
+        renderControls();
+    }
+
+    function toggleSidebarPinnedOpen() {
+        setSidebarPinnedOpen(!document.body.classList.contains("sidebar-expanded"));
     }
 
     function showToast(message, type = "info") {
@@ -1248,6 +1261,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (els.clearAllButton) {
             els.clearAllButton.disabled = state.conversations.length === 0;
+        }
+
+        if (els.sidebarToggleButton) {
+            const isExpanded = document.body.classList.contains("sidebar-expanded");
+            const nextLabel = isExpanded ? "Collapse sidebar" : "Expand sidebar";
+            els.sidebarToggleButton.setAttribute("aria-label", nextLabel);
+            els.sidebarToggleButton.setAttribute("aria-pressed", String(sidebarPinnedOpen));
+            els.sidebarToggleButton.innerHTML = `
+                <span class="material-symbols-outlined">${isExpanded ? "keyboard_double_arrow_left" : "keyboard_double_arrow_right"}</span>
+                <span class="sidebar-item-label">${nextLabel}</span>
+            `;
         }
 
         renderActiveProviderSwitcher();
@@ -2539,9 +2563,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function closeAllDialogs() {
-        [els.settingsDialog, els.renameDialog, els.confirmDialog, els.imagePreviewDialog].forEach((dialog) => closeDialog(dialog));
+        [
+            els.settingsDialog,
+            els.personalizationDialog,
+            els.renameDialog,
+            els.confirmDialog,
+            els.imagePreviewDialog,
+        ].forEach((dialog) => closeDialog(dialog));
         clearImagePreview(els.imagePreviewLarge);
         confirmCallback = null;
+    }
+
+    function openPersonalizationDialog() {
+        openDialog(els.personalizationDialog, els.personalizationTextarea || els.memoryInput);
     }
 
     function openConfirmDialog({ title, message, actionLabel, onConfirm }) {
@@ -2871,6 +2905,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         });
+        document.querySelectorAll("[data-action='open-personalization-settings']").forEach((button) => {
+            button.addEventListener("click", () => {
+                openPersonalizationDialog();
+
+                if (mobileSidebarQuery.matches) {
+                    setSidebarOpen(false);
+                }
+            });
+        });
         document.querySelectorAll("[data-action='open-file-upload']").forEach((button) => {
             button.addEventListener("click", () => {
                 els.fileInput.click();
@@ -2913,8 +2956,8 @@ document.addEventListener("DOMContentLoaded", () => {
             renderSidebar();
             renderIcons();
         });
-        els.settingsButton.addEventListener("click", () => openSettingsSection());
         els.settingsCloseButton.addEventListener("click", () => closeDialog(els.settingsDialog));
+        els.personalizationCloseButton?.addEventListener("click", () => closeDialog(els.personalizationDialog));
         els.renameChatButton.addEventListener("click", () => openRenameDialog(state.activeConversationId));
         els.renameCloseButton.addEventListener("click", () => closeDialog(els.renameDialog));
         els.renameCancelButton.addEventListener("click", () => closeDialog(els.renameDialog));
@@ -3006,11 +3049,16 @@ document.addEventListener("DOMContentLoaded", () => {
         els.mobileMenuButton?.addEventListener("click", () => setSidebarOpen(true));
         els.sidebarCloseButton?.addEventListener("click", () => setSidebarOpen(false));
         els.sidebarScrim?.addEventListener("click", () => setSidebarOpen(false));
+        els.sidebarToggleButton?.addEventListener("click", toggleSidebarPinnedOpen);
         els.sidebar?.addEventListener("mouseenter", () => setDesktopSidebarExpanded(true));
-        els.sidebar?.addEventListener("mouseleave", () => setDesktopSidebarExpanded(false));
+        els.sidebar?.addEventListener("mouseleave", () => {
+            if (!sidebarPinnedOpen) {
+                setDesktopSidebarExpanded(false);
+            }
+        });
         els.sidebar?.addEventListener("focusin", () => setDesktopSidebarExpanded(true));
         els.sidebar?.addEventListener("focusout", (event) => {
-            if (!els.sidebar.contains(event.relatedTarget) && !els.sidebar.matches(":hover")) {
+            if (!sidebarPinnedOpen && !els.sidebar.contains(event.relatedTarget) && !els.sidebar.matches(":hover")) {
                 setDesktopSidebarExpanded(false);
             }
         });
@@ -3208,7 +3256,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        desktopSidebarQuery.addEventListener("change", () => setDesktopSidebarExpanded(false, true));
+        desktopSidebarQuery.addEventListener("change", () => {
+            sidebarPinnedOpen = false;
+            setDesktopSidebarExpanded(false, true);
+            renderControls();
+        });
 
         window.addEventListener("beforeunload", () => cleanupPendingAttachmentUrls());
     }
