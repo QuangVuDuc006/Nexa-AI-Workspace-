@@ -58,6 +58,9 @@ class Conversation(Base):
     id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("conv"))
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(120), default="New chat", nullable=False)
+    summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    summary_message_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    summary_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
 

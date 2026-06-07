@@ -1,6 +1,7 @@
 from flask import Blueprint, Response, current_app, jsonify, stream_with_context
 
 from services.ai.context_builder import build_conversation_context
+from services.ai.conversation_summary import schedule_conversation_summary
 from services.ai.errors import AIProviderError, UpstreamAPIError
 from services.auth import login_required
 from services.database import db_session
@@ -43,6 +44,18 @@ def run_auto_memory(db, user_id):
         return maybe_run_auto_memory(user_id, db=db)
     except MemoryValidationError:
         return []
+
+
+def trigger_conversation_summary(user_id, conversation, chat_router, provider_id, model):
+    return schedule_conversation_summary(
+        user_id,
+        conversation.id,
+        chat_router,
+        provider_id,
+        model,
+        message_count=len(conversation.messages),
+        summary_message_count=getattr(conversation, "summary_message_count", 0),
+    )
 
 
 def create_chat_blueprint(deps):
@@ -123,6 +136,7 @@ def create_chat_blueprint(deps):
                 stream.model,
             )
             db.commit()
+            trigger_conversation_summary(user.id, conversation, chat_router, provider_id, model)
             log_memory_debug(
                 deps,
                 "memory_debug chat assistant_persisted",
@@ -247,15 +261,25 @@ def create_chat_blueprint(deps):
                         yield json_stream_event({"type": "token", "text": text_chunk})
 
                 persisted_db = db_session()
-                update_assistant_message(
-                    persisted_db,
-                    user.id,
-                    assistant_message.id,
-                    "".join(reply_parts),
-                    stream.provider,
-                    stream.model,
-                )
-                persisted_db.commit()
+                try:
+                    persisted_assistant = update_assistant_message(
+                        persisted_db,
+                        user.id,
+                        assistant_message.id,
+                        "".join(reply_parts),
+                        stream.provider,
+                        stream.model,
+                    )
+                    persisted_db.commit()
+                    trigger_conversation_summary(
+                        user.id,
+                        persisted_assistant.conversation,
+                        chat_router,
+                        provider_id,
+                        model,
+                    )
+                finally:
+                    persisted_db.close()
                 log_memory_debug(
                     deps,
                     "memory_debug stream assistant_persisted",
