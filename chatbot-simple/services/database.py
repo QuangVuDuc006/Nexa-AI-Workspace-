@@ -4,7 +4,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, create_engine
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, scoped_session, sessionmaker
 
 
@@ -38,6 +38,15 @@ class User(Base):
 
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     provider_connections: Mapped[list["ProviderConnection"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    personalization: Mapped["UserPersonalization"] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    memories: Mapped[list["UserMemory"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -154,6 +163,43 @@ class ProviderConnection(Base):
 
 
 Index("ix_provider_connections_user_active", ProviderConnection.user_id, ProviderConnection.is_active)
+
+
+class UserPersonalization(Base):
+    __tablename__ = "user_personalizations"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    personalization_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="personalization")
+
+
+class UserMemory(Base):
+    __tablename__ = "user_memories"
+    __table_args__ = (
+        CheckConstraint("source IN ('manual', 'explicit', 'auto_frequency')", name="ck_user_memories_source"),
+        CheckConstraint("status IN ('active', 'archived', 'deleted')", name="ck_user_memories_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("mem"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(120), default="", nullable=False)
+    value: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    source: Mapped[str] = mapped_column(String(32), default="manual", nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="active", nullable=False, index=True)
+    confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    frequency_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="memories")
+
+
+Index("ix_user_memories_user_status_updated", UserMemory.user_id, UserMemory.status, UserMemory.updated_at.desc())
+Index("ix_user_memories_user_key_source", UserMemory.user_id, UserMemory.key, UserMemory.source)
 
 
 def init_database(app, database_url):

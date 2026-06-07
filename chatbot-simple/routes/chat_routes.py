@@ -5,6 +5,7 @@ from services.ai.errors import AIProviderError, UpstreamAPIError
 from services.auth import login_required
 from services.database import db_session
 from services.http import error_response
+from services.memory_service import MemoryValidationError, create_memory, detect_explicit_memory, maybe_run_auto_memory
 from services.persistence import serialize_conversation, serialize_message, update_assistant_message
 from services.security import csrf_protect, rate_limit
 
@@ -23,6 +24,25 @@ def log_memory_debug(deps, message, extra):
         return
 
     current_app.logger.warning(message, extra=extra)
+
+
+def capture_explicit_memory(db, user_id, message):
+    memory_value = detect_explicit_memory(message)
+
+    if not memory_value:
+        return None
+
+    try:
+        return create_memory(user_id, "", memory_value, "explicit", 1.0, 1, db=db)
+    except MemoryValidationError:
+        return None
+
+
+def run_auto_memory(db, user_id):
+    try:
+        return maybe_run_auto_memory(user_id, db=db)
+    except MemoryValidationError:
+        return []
 
 
 def create_chat_blueprint(deps):
@@ -49,6 +69,7 @@ def create_chat_blueprint(deps):
                     "message_preview": payload["message"][:200],
                 },
             )
+            capture_explicit_memory(db, user.id, payload["message"])
             chat_router, provider_id, model = selected_chat_router(deps, db, user.id)
             context_message = build_conversation_context(
                 payload["conversation_id"],
@@ -74,6 +95,8 @@ def create_chat_blueprint(deps):
             payload["provider"] = stream.provider
             payload["model"] = stream.model
             conversation, user_message, assistant_message = prepare_persisted_chat(deps, payload, db, user.id)
+            db.flush()
+            run_auto_memory(db, user.id)
             log_memory_debug(
                 deps,
                 "memory_debug chat resolved_conversation",
@@ -154,6 +177,7 @@ def create_chat_blueprint(deps):
                     "message_preview": payload["message"][:200],
                 },
             )
+            capture_explicit_memory(db, user.id, payload["message"])
             chat_router, provider_id, model = selected_chat_router(deps, db, user.id)
             context_message = build_conversation_context(
                 payload["conversation_id"],
@@ -179,6 +203,8 @@ def create_chat_blueprint(deps):
             payload["provider"] = stream.provider
             payload["model"] = stream.model
             conversation, user_message, assistant_message = prepare_persisted_chat(deps, payload, db, user.id)
+            db.flush()
+            run_auto_memory(db, user.id)
             log_memory_debug(
                 deps,
                 "memory_debug stream resolved_conversation",

@@ -12,6 +12,7 @@ from routes.chat_routes import create_chat_blueprint
 from routes.common import RouteDeps, firebase_auth_configured, get_firebase_web_config
 from routes.conversation_routes import create_conversation_blueprint
 from routes.health_routes import create_health_blueprint
+from routes.memory_routes import create_memory_blueprint
 from routes.provider_routes import create_provider_blueprint
 from routes.upload_routes import create_upload_blueprint
 from services.ai.credentials import CredentialCipher
@@ -36,6 +37,7 @@ def register_blueprints(app, deps):
     app.register_blueprint(create_conversation_blueprint(deps))
     app.register_blueprint(create_upload_blueprint(deps))
     app.register_blueprint(create_chat_blueprint(deps))
+    app.register_blueprint(create_memory_blueprint(deps))
     app.register_blueprint(create_health_blueprint(deps))
 
 

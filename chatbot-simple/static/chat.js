@@ -85,6 +85,16 @@ document.addEventListener("DOMContentLoaded", () => {
         themeToggleButton: document.querySelector(".theme-toggle-button"),
         activeModelPrefix: document.querySelector(".active-model-prefix"),
         activeProviderSelect: document.querySelector(".active-provider-select"),
+        personalizationForm: document.querySelector(".personalization-form"),
+        personalizationTextarea: document.querySelector(".personalization-textarea"),
+        personalizationStatus: document.querySelector(".personalization-status"),
+        memoryList: document.querySelector(".memory-list"),
+        memoryCount: document.querySelector(".memory-count"),
+        memoryForm: document.querySelector(".memory-form"),
+        memoryEditId: document.querySelector(".memory-edit-id"),
+        memoryInput: document.querySelector(".memory-input"),
+        memoryCancelEditButton: document.querySelector(".memory-cancel-edit-button"),
+        memorySaveButton: document.querySelector(".memory-save-button"),
         providerForm: document.querySelector(".provider-form"),
         providerConnectionId: document.querySelector(".provider-connection-id"),
         apiKeyInput: document.querySelector(".api-key-input"),
@@ -148,6 +158,14 @@ document.addEventListener("DOMContentLoaded", () => {
         activeProvider: null,
         activeProviderId: "",
         supportedProviders: [],
+    };
+    let personalizationWorkspace = {
+        personalizationText: "",
+        memories: [],
+        loaded: false,
+        editingMemoryId: "",
+        isSavingPersonalization: false,
+        isSavingMemory: false,
     };
     let detectedProvider = null;
     let editingProviderId = "";
@@ -700,6 +718,248 @@ document.addEventListener("DOMContentLoaded", () => {
             renderControls();
         } catch (error) {
             setProviderStatus(error.message || "Could not load providers", true);
+        }
+    }
+
+    function normalizeMemory(memory) {
+        return {
+            id: String(memory?.id || ""),
+            value: String(memory?.value || ""),
+            updatedAt: Number(memory?.updatedAt) || Date.now(),
+        };
+    }
+
+    function setPersonalizationWorkspace(profileData, memoryData) {
+        personalizationWorkspace.personalizationText = String(
+            profileData?.personalizationText ||
+            profileData?.profile?.personalizationText ||
+            profileData?.profile?.personalization_text ||
+            "",
+        );
+        personalizationWorkspace.memories = Array.isArray(memoryData?.memories)
+            ? memoryData.memories.map(normalizeMemory).filter((memory) => memory.id && memory.value)
+            : [];
+        personalizationWorkspace.loaded = true;
+    }
+
+    function renderMemorySettings() {
+        if (els.personalizationTextarea && document.activeElement !== els.personalizationTextarea) {
+            els.personalizationTextarea.value = personalizationWorkspace.personalizationText;
+        }
+
+        if (els.memoryCount) {
+            els.memoryCount.textContent = `${personalizationWorkspace.memories.length}/30`;
+        }
+
+        if (els.memoryList) {
+            if (personalizationWorkspace.memories.length === 0) {
+                els.memoryList.innerHTML = `<div class="memory-empty">Nexa chưa có memory nào về bạn.</div>`;
+            } else {
+                els.memoryList.innerHTML = personalizationWorkspace.memories.map((memory) => `
+                    <div class="memory-item" data-memory-id="${escapeAttribute(memory.id)}">
+                        <p>${escapeHtml(memory.value)}</p>
+                        <span class="memory-item-actions">
+                            <button type="button" data-memory-action="edit" aria-label="Sửa memory">
+                                <span class="material-symbols-outlined">edit</span>
+                            </button>
+                            <button class="delete-memory-button" type="button" data-memory-action="delete" aria-label="Xóa memory">
+                                <span class="material-symbols-outlined">delete</span>
+                            </button>
+                        </span>
+                    </div>
+                `).join("");
+            }
+        }
+
+        if (els.personalizationStatus && !personalizationWorkspace.isSavingPersonalization) {
+            els.personalizationStatus.textContent = personalizationWorkspace.loaded ? "" : "Đang tải...";
+        }
+
+        if (els.memorySaveButton) {
+            els.memorySaveButton.textContent = personalizationWorkspace.editingMemoryId ? "Lưu memory" : "Thêm memory";
+            els.memorySaveButton.disabled = personalizationWorkspace.isSavingMemory;
+        }
+
+        if (els.memoryCancelEditButton) {
+            els.memoryCancelEditButton.hidden = !personalizationWorkspace.editingMemoryId;
+        }
+
+        renderIcons();
+    }
+
+    async function loadPersonalizationSettings() {
+        if (!els.personalizationForm && !els.memoryList) {
+            return;
+        }
+
+        renderMemorySettings();
+
+        try {
+            const [profileResponse, memoryResponse] = await Promise.all([
+                apiFetch("/api/personalization"),
+                apiFetch("/api/memory"),
+            ]);
+            const profileData = await profileResponse.json().catch(() => ({}));
+            const memoryData = await memoryResponse.json().catch(() => ({}));
+
+            if (!profileResponse.ok) {
+                throw new Error(profileData.error || "Could not load personalization.");
+            }
+
+            if (!memoryResponse.ok) {
+                throw new Error(memoryData.error || "Could not load memories.");
+            }
+
+            setPersonalizationWorkspace(profileData, memoryData);
+            renderMemorySettings();
+        } catch (error) {
+            personalizationWorkspace.loaded = true;
+            renderMemorySettings();
+            showToast(error.message || "Could not load personalization", "error");
+        }
+    }
+
+    async function savePersonalization(event) {
+        event.preventDefault();
+        personalizationWorkspace.isSavingPersonalization = true;
+
+        if (els.personalizationStatus) {
+            els.personalizationStatus.textContent = "Đang lưu...";
+        }
+
+        const saveButton = els.personalizationForm?.querySelector("button[type='submit']");
+        if (saveButton) {
+            saveButton.disabled = true;
+        }
+
+        try {
+            const response = await apiFetch("/api/personalization", {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    personalizationText: els.personalizationTextarea?.value || "",
+                }),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.error || "Could not save personalization.");
+            }
+
+            personalizationWorkspace.personalizationText = data.personalizationText || data.profile?.personalizationText || "";
+            if (els.personalizationStatus) {
+                els.personalizationStatus.textContent = "Đã lưu";
+            }
+            showToast("Đã lưu cá nhân hóa");
+        } catch (error) {
+            if (els.personalizationStatus) {
+                els.personalizationStatus.textContent = "";
+            }
+            showToast(error.message || "Could not save personalization", "error");
+        } finally {
+            personalizationWorkspace.isSavingPersonalization = false;
+            if (saveButton) {
+                saveButton.disabled = false;
+            }
+        }
+    }
+
+    function resetMemoryForm() {
+        personalizationWorkspace.editingMemoryId = "";
+
+        if (els.memoryEditId) {
+            els.memoryEditId.value = "";
+        }
+
+        if (els.memoryInput) {
+            els.memoryInput.value = "";
+        }
+
+        renderMemorySettings();
+    }
+
+    function editMemory(memoryId) {
+        const memory = personalizationWorkspace.memories.find((item) => item.id === memoryId);
+
+        if (!memory) {
+            return;
+        }
+
+        personalizationWorkspace.editingMemoryId = memory.id;
+        if (els.memoryEditId) {
+            els.memoryEditId.value = memory.id;
+        }
+        if (els.memoryInput) {
+            els.memoryInput.value = memory.value;
+            els.memoryInput.focus();
+        }
+        renderMemorySettings();
+    }
+
+    async function saveMemory(event) {
+        event.preventDefault();
+        const value = els.memoryInput?.value.trim() || "";
+        const editingId = personalizationWorkspace.editingMemoryId;
+
+        if (!value) {
+            showToast("Nhập memory trước khi lưu", "error");
+            return;
+        }
+
+        personalizationWorkspace.isSavingMemory = true;
+        renderMemorySettings();
+
+        try {
+            const response = await apiFetch(editingId ? `/api/memory/${encodeURIComponent(editingId)}` : "/api/memory", {
+                method: editingId ? "PATCH" : "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({value}),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.error || "Could not save memory.");
+            }
+
+            const memory = normalizeMemory(data.memory);
+
+            if (editingId) {
+                personalizationWorkspace.memories = personalizationWorkspace.memories.map((item) =>
+                    item.id === editingId ? memory : item
+                );
+            } else if (memory.id) {
+                personalizationWorkspace.memories = [memory, ...personalizationWorkspace.memories]
+                    .filter((item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index)
+                    .slice(0, 30);
+            }
+
+            resetMemoryForm();
+            showToast(editingId ? "Đã cập nhật memory" : "Đã thêm memory");
+            await loadPersonalizationSettings();
+        } catch (error) {
+            showToast(error.message || "Could not save memory", "error");
+        } finally {
+            personalizationWorkspace.isSavingMemory = false;
+            renderMemorySettings();
+        }
+    }
+
+    async function deleteMemory(memoryId) {
+        try {
+            const response = await apiFetch(`/api/memory/${encodeURIComponent(memoryId)}`, {
+                method: "DELETE",
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.error || "Could not delete memory.");
+            }
+
+            personalizationWorkspace.memories = personalizationWorkspace.memories.filter((memory) => memory.id !== memoryId);
+            resetMemoryForm();
+            showToast("Đã xóa memory");
+        } catch (error) {
+            showToast(error.message || "Could not delete memory", "error");
         }
     }
 
@@ -2311,7 +2571,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         window.setTimeout(() => {
             const section = document.querySelector(`[data-settings-section="${sectionName}"]`);
-            const focusTarget = section?.querySelector("select, input, button");
+            const focusTarget = section?.querySelector("textarea, select, input, button");
             section?.scrollIntoView({ block: "nearest" });
             focusTarget?.focus();
         }, 80);
@@ -2678,6 +2938,33 @@ document.addEventListener("DOMContentLoaded", () => {
             saveState();
         });
         els.activeProviderSelect?.addEventListener("change", () => activateProvider(els.activeProviderSelect.value));
+        els.personalizationForm?.addEventListener("submit", savePersonalization);
+        els.memoryForm?.addEventListener("submit", saveMemory);
+        els.memoryCancelEditButton?.addEventListener("click", resetMemoryForm);
+        els.memoryList?.addEventListener("click", (event) => {
+            const button = event.target.closest("[data-memory-action]");
+            const item = event.target.closest("[data-memory-id]");
+
+            if (!button || !item) {
+                return;
+            }
+
+            const memoryId = item.dataset.memoryId;
+
+            if (button.dataset.memoryAction === "edit") {
+                editMemory(memoryId);
+                return;
+            }
+
+            if (button.dataset.memoryAction === "delete") {
+                openConfirmDialog({
+                    title: "Xóa memory?",
+                    message: "Xóa memory này khỏi Nexa?",
+                    actionLabel: "Xóa memory",
+                    onConfirm: () => deleteMemory(memoryId),
+                });
+            }
+        });
         els.detectModelsButton?.addEventListener("click", detectProviderModels);
         els.testConnectionButton?.addEventListener("click", testProviderConnection);
         els.providerForm?.addEventListener("submit", saveProviderSettings);
@@ -2933,6 +3220,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.setInterval(rotateWelcomePrompt, 12000);
     renderApp({ forceScroll: true });
     loadProviders();
+    loadPersonalizationSettings();
     loadConversations().then(migrateLegacyLocalHistory);
 });
 }

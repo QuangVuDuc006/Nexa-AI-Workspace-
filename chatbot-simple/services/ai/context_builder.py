@@ -6,6 +6,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import selectinload
 
 from services.database import Conversation, Message, db_session
+from services.memory_service import get_memory_context
 
 
 SYSTEM_PROMPT = (
@@ -130,10 +131,31 @@ def render_messages(messages, max_file_content=MAX_FILE_CONTENT_CHARS):
     return rendered
 
 
-def compose_context(summary, history_text, current_user_message):
+def render_memory_values(memories):
+    values = []
+
+    for memory in memories or []:
+        value = getattr(memory, "value", memory)
+        value = str(value or "").strip()
+
+        if value:
+            values.append(value)
+
+    return values
+
+
+def compose_context(summary, history_text, current_user_message, personalization_text="", memories=None):
     sections = [
         f"System:\n{SYSTEM_PROMPT}",
     ]
+
+    personalization_text = str(personalization_text or "").strip()
+    if personalization_text:
+        sections.append(f"User personalization:\n{personalization_text}")
+
+    memory_values = render_memory_values(memories)
+    if memory_values:
+        sections.append("User memories:\n" + "\n".join(f"- {value}" for value in memory_values))
 
     if summary:
         sections.append(f"Conversation summary:\n{summary}")
@@ -172,8 +194,8 @@ def longest_fitting_text(original, builder, max_context_length):
     return best
 
 
-def fit_current_message(summary, current_user_message, max_context_length):
-    context = compose_context(summary, "", current_user_message)
+def fit_current_message(summary, current_user_message, max_context_length, personalization_text="", memories=None):
+    context = compose_context(summary, "", current_user_message, personalization_text, memories)
 
     if len(context) <= max_context_length:
         return summary, current_user_message
@@ -181,29 +203,29 @@ def fit_current_message(summary, current_user_message, max_context_length):
     if summary:
         summary = longest_fitting_text(
             summary,
-            lambda value: compose_context(value, "", current_user_message),
+            lambda value: compose_context(value, "", current_user_message, personalization_text, memories),
             max_context_length,
         )
-        context = compose_context(summary, "", current_user_message)
+        context = compose_context(summary, "", current_user_message, personalization_text, memories)
 
     if len(context) <= max_context_length:
         return summary, current_user_message
 
     current_user_message = longest_fitting_text(
         current_user_message,
-        lambda value: compose_context(summary, "", value),
+        lambda value: compose_context(summary, "", value, personalization_text, memories),
         max_context_length,
     )
     return summary, current_user_message
 
 
-def fit_history(rendered_messages, summary, current_user_message, max_context_length):
+def fit_history(rendered_messages, summary, current_user_message, max_context_length, personalization_text="", memories=None):
     selected_newest_first = []
 
     for rendered in reversed(rendered_messages):
         candidate_newest_first = selected_newest_first + [rendered]
         history_text = "\n\n".join(reversed(candidate_newest_first))
-        candidate = compose_context(summary, history_text, current_user_message)
+        candidate = compose_context(summary, history_text, current_user_message, personalization_text, memories)
 
         if len(candidate) <= max_context_length:
             selected_newest_first = candidate_newest_first
@@ -214,7 +236,7 @@ def fit_history(rendered_messages, summary, current_user_message, max_context_le
 
         truncated = longest_fitting_text(
             rendered,
-            lambda value: compose_context(summary, value, current_user_message),
+            lambda value: compose_context(summary, value, current_user_message, personalization_text, memories),
             max_context_length,
         )
 
@@ -244,6 +266,9 @@ def build_conversation_context(
         if conversation is not None:
             summary = str(getattr(conversation, "summary", "") or "").strip()
 
+        memory_context = get_memory_context(user_id, db=db) if user_id else {"personalization_text": "", "memories": []}
+        personalization_text = memory_context["personalization_text"]
+        memories = memory_context["memories"]
         messages = get_recent_messages(db, conversation_id, user_id, max_messages)
         rendered_messages = render_messages(messages)
         logger.warning(
@@ -255,13 +280,32 @@ def build_conversation_context(
                 "history_last_2": rendered_messages[-2:],
             },
         )
-        summary, fitted_user_message = fit_current_message(summary, str(user_message or ""), max_context_length)
-        history_text = fit_history(rendered_messages, summary, fitted_user_message, max_context_length)
-        context = compose_context(summary, history_text, fitted_user_message)
+        summary, fitted_user_message = fit_current_message(
+            summary,
+            str(user_message or ""),
+            max_context_length,
+            personalization_text,
+            memories,
+        )
+        history_text = fit_history(
+            rendered_messages,
+            summary,
+            fitted_user_message,
+            max_context_length,
+            personalization_text,
+            memories,
+        )
+        context = compose_context(summary, history_text, fitted_user_message, personalization_text, memories)
 
         if len(context) > max_context_length:
-            summary, fitted_user_message = fit_current_message("", str(user_message or ""), max_context_length)
-            context = compose_context(summary, "", fitted_user_message)
+            summary, fitted_user_message = fit_current_message(
+                "",
+                str(user_message or ""),
+                max_context_length,
+                personalization_text,
+                memories,
+            )
+            context = compose_context(summary, "", fitted_user_message, personalization_text, memories)
 
         if len(context) > max_context_length:
             context = compact_current_message_context(str(user_message or ""), max_context_length)

@@ -192,6 +192,46 @@
                     </div>
                 </section>
 
+                <section class="settings-section personalization-settings-section" data-settings-section="personalization" aria-labelledby="personalizationSettingsTitle">
+                    <div class="settings-section-heading">
+                        <div>
+                            <h3 id="personalizationSettingsTitle">Cá nhân hóa</h3>
+                            <p class="settings-help">Cho Nexa biết cách bạn muốn được hỗ trợ. Nexa cũng có thể ghi nhớ các thông tin bạn yêu cầu hoặc các thói quen lặp lại trong quá trình sử dụng.</p>
+                        </div>
+                    </div>
+
+                    <form class="personalization-form">
+                        <label class="form-field">
+                            <span>Cách Nexa phản hồi</span>
+                            <textarea class="personalization-textarea" rows="5" maxlength="4000" placeholder="Ví dụ: Trả lời bằng tiếng Việt, giải thích từng bước, ưu tiên ví dụ code, nói ngắn gọn khi có thể..."></textarea>
+                        </label>
+                        <p class="settings-help">Viết cách bạn muốn Nexa phản hồi. Nội dung này sẽ được dùng để cá nhân hóa tất cả cuộc trò chuyện và mọi provider.</p>
+                        <div class="dialog-actions personalization-actions">
+                            <span class="personalization-status" role="status"></span>
+                            <button class="primary-button" type="submit">Lưu</button>
+                        </div>
+                    </form>
+
+                    <div class="memory-management">
+                        <div class="saved-provider-heading">
+                            <strong>Những điều Nexa nhớ về bạn</strong>
+                            <span class="memory-count">0/30</span>
+                        </div>
+                        <div class="memory-list"></div>
+                        <form class="memory-form">
+                            <input class="memory-edit-id" type="hidden">
+                            <label class="form-field">
+                                <span>Memory</span>
+                                <textarea class="memory-input" rows="2" maxlength="1000" placeholder="Thêm điều bạn muốn Nexa nhớ..."></textarea>
+                            </label>
+                            <div class="dialog-actions memory-actions-row">
+                                <button class="secondary-button memory-cancel-edit-button" type="button" hidden>Hủy</button>
+                                <button class="primary-button memory-save-button" type="submit">Thêm memory</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
                 <section class="settings-section provider-settings-section" data-settings-section="provider" aria-labelledby="providerSettingsTitle">
                     <div class="settings-section-heading">
                         <div>

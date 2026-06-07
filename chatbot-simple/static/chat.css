@@ -2625,7 +2625,8 @@ body.home-empty .composer {
     font-weight: 550;
 }
 
-.form-field input {
+.form-field input,
+.form-field textarea {
     min-height: 42px;
     width: 100%;
     padding: 0 12px;
@@ -2638,6 +2639,13 @@ body.home-empty .composer {
         border-color 160ms var(--ease),
         background 160ms var(--ease),
         box-shadow 160ms var(--ease);
+}
+
+.form-field textarea {
+    min-height: 92px;
+    padding: 11px 12px;
+    line-height: 1.5;
+    resize: vertical;
 }
 
 .form-field select {
@@ -2665,12 +2673,14 @@ body.home-empty .composer {
 }
 
 .form-field input:hover,
+.form-field textarea:hover,
 .form-field select:hover {
     border-color: var(--primary-line);
     background-color: var(--surface-raised);
 }
 
 .form-field input:focus,
+.form-field textarea:focus,
 .form-field select:focus {
     border-color: var(--primary-line);
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
@@ -2679,6 +2689,100 @@ body.home-empty .composer {
 .rename-form {
     display: grid;
     gap: 16px;
+}
+
+.personalization-settings-section {
+    gap: 16px;
+}
+
+.personalization-form,
+.memory-form {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.personalization-actions,
+.memory-actions-row {
+    align-items: center;
+    justify-content: space-between;
+}
+
+.personalization-status,
+.memory-count {
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-weight: 750;
+}
+
+.memory-management {
+    display: grid;
+    gap: 10px;
+}
+
+.memory-list {
+    display: grid;
+    gap: 7px;
+}
+
+.memory-empty {
+    padding: 12px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: center;
+}
+
+.memory-item {
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+}
+
+.memory-item p {
+    min-width: 0;
+    flex: 1 1 auto;
+    margin: 0;
+    color: var(--text);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.memory-item-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 3px;
+}
+
+.memory-item-actions button {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-xs);
+    color: var(--muted);
+    background: transparent;
+}
+
+.memory-item-actions button:hover {
+    color: var(--primary-hot);
+    background: var(--surface-raised);
+}
+
+.memory-item-actions .delete-memory-button:hover {
+    color: var(--danger);
+    background: var(--danger-soft);
 }
 
 .provider-form {
