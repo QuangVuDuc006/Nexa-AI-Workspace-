@@ -56,6 +56,9 @@
     --shadow-sm: 0 12px 42px rgba(0, 0, 0, 0.34);
     --shadow-md: 0 18px 70px rgba(0, 0, 0, 0.48);
     --shadow-panel: 0 24px 90px rgba(0, 0, 0, 0.58);
+    --chat-bottom-mask-start: rgba(5, 5, 5, 0);
+    --chat-bottom-mask-mid: rgba(5, 5, 5, 0.96);
+    --chat-bottom-mask-solid: #050505;
     --radius-xs: 4px;
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -127,6 +130,9 @@ html[data-theme="light"] {
     --shadow-sm: 0 12px 40px rgba(0, 0, 0, 0.08);
     --shadow-md: 0 18px 60px rgba(0, 0, 0, 0.12);
     --shadow-panel: 0 22px 72px rgba(0, 0, 0, 0.16);
+    --chat-bottom-mask-start: rgba(247, 247, 247, 0);
+    --chat-bottom-mask-mid: rgba(247, 247, 247, 0.96);
+    --chat-bottom-mask-solid: #f7f7f7;
 }
 
 html[data-theme="dark"] {
@@ -959,6 +965,25 @@ body:not(.sidebar-expanded) .sidebar-logo-collapsed,
         var(--surface);
 }
 
+.workspace::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 8;
+    height: 230px;
+    pointer-events: none;
+    background:
+        linear-gradient(
+            180deg,
+            var(--chat-bottom-mask-start) 0%,
+            var(--chat-bottom-mask-mid) 36%,
+            var(--chat-bottom-mask-solid) 70%,
+            var(--chat-bottom-mask-solid) 100%
+        );
+    content: "";
+}
+
 html[data-theme="light"] .workspace {
     background:
         radial-gradient(circle at 50% 4%, rgba(0, 0, 0, 0.035), transparent 32%),
@@ -1146,7 +1171,7 @@ body.search-open .topbar-search {
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
-    padding: 24px clamp(18px, 4vw, 64px) 170px;
+    padding: 24px clamp(18px, 4vw, 64px) 250px;
     scrollbar-gutter: stable;
 }
 
@@ -1171,7 +1196,7 @@ body.home-empty .messages {
 }
 
 .chat-thread {
-    width: min(900px, 100%);
+    width: min(1100px, 100%);
     min-width: 0;
     display: grid;
     gap: 26px;
@@ -1285,6 +1310,12 @@ body.home-empty .chat-thread {
     gap: 9px;
 }
 
+.ai-message .message-shell {
+    width: calc(100% - 48px);
+    max-width: calc(100% - 48px);
+    flex: 1 1 auto;
+}
+
 .user-message .message-shell {
     max-width: min(660px, calc(100% - 46px));
     justify-items: end;
@@ -1306,6 +1337,10 @@ body.home-empty .chat-thread {
     border-radius: var(--radius-sm);
     color: var(--muted);
     background: var(--surface-muted);
+}
+
+.assistant-message .message-avatar {
+    margin-top: 2px;
 }
 
 .ai-avatar {
@@ -1368,11 +1403,12 @@ body.home-empty .chat-thread {
 }
 
 .ai-message .message-bubble {
-    padding: 16px 18px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
+    padding: 2px 0 0;
+    border: 0;
+    border-radius: 0;
     color: var(--text);
-    background: var(--surface-muted);
+    background: transparent;
+    box-shadow: none;
 }
 
 .user-message .message-bubble {
@@ -1411,6 +1447,10 @@ html[data-theme="light"] .user-message .text-bubble {
     min-width: 0;
 }
 
+.assistant-message .message-content {
+    width: 100%;
+}
+
 .message-content > * {
     margin: 0;
 }
@@ -1421,6 +1461,14 @@ html[data-theme="light"] .user-message .text-bubble {
 
 .message-content p {
     max-width: 68ch;
+}
+
+.assistant-message .message-content p,
+.assistant-message .message-content h1,
+.assistant-message .message-content h2,
+.assistant-message .message-content h3,
+.assistant-message .message-content h4 {
+    max-width: 100%;
 }
 
 .message-content .streaming-text {
@@ -1485,6 +1533,11 @@ html[data-theme="light"] .user-message .text-bubble {
     padding-left: 22px;
 }
 
+.assistant-message .message-content ol,
+.assistant-message .message-content ul {
+    max-width: 100%;
+}
+
 .message-content blockquote {
     padding: 10px 12px;
     border-left: 3px solid var(--primary-hot);
@@ -1502,6 +1555,7 @@ html[data-theme="light"] .user-message .text-bubble {
 
 .message-content pre {
     position: relative;
+    width: 100%;
     max-width: 100%;
     overflow-x: auto;
     margin-top: 16px;
@@ -1532,6 +1586,36 @@ html[data-theme="light"] .user-message .text-bubble {
     font-family: var(--font-mono);
     font-size: 0.68rem;
     font-weight: 700;
+}
+
+.message-content table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-size: 0.94rem;
+    line-height: 1.5;
+}
+
+.message-content th,
+.message-content td {
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.message-content th {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.07);
+    font-weight: 750;
+}
+
+.message-content td {
+    color: var(--text-soft);
 }
 
 .message-content code {
@@ -1565,6 +1649,7 @@ html[data-theme="light"] .user-message .text-bubble {
 
 .math-block {
     display: block;
+    width: 100%;
     max-width: 100%;
     margin: 12px 0;
     overflow-x: auto;
@@ -3021,7 +3106,11 @@ body.home-empty .composer {
     }
 
     .messages {
-        padding: 18px 16px 166px;
+        padding: 18px 16px 232px;
+    }
+
+    .workspace::after {
+        height: 214px;
     }
 
     .composer {
@@ -3071,6 +3160,9 @@ body.home-empty .composer {
         --send-text: #ffffff;
         --line: rgba(255, 255, 255, 0.08);
         --line-strong: rgba(255, 255, 255, 0.13);
+        --chat-bottom-mask-start: rgba(0, 0, 0, 0);
+        --chat-bottom-mask-mid: rgba(0, 0, 0, 0.96);
+        --chat-bottom-mask-solid: #000000;
     }
 
     body {
@@ -3228,8 +3320,13 @@ body.home-empty .composer {
     }
 
     .messages {
-        padding: 12px 14px 132px;
+        padding: 12px 14px calc(190px + env(safe-area-inset-bottom));
         scrollbar-gutter: auto;
+    }
+
+    .workspace::after {
+        position: fixed;
+        height: calc(176px + env(safe-area-inset-bottom));
     }
 
     .chat-thread {
@@ -3301,6 +3398,11 @@ body.home-empty .composer {
 
     .message-shell,
     .user-message .message-shell {
+        max-width: calc(100% - 38px);
+    }
+
+    .ai-message .message-shell {
+        width: calc(100% - 38px);
         max-width: calc(100% - 38px);
     }
 
