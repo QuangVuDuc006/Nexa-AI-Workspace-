@@ -1,6 +1,6 @@
 import { createApiClient } from "./api.js";
 import { createUploadsFeature } from "./features/uploads.js";
-import { initChatWorkspace } from "../chat.js";
+import { initChatWorkspace } from "../chat.js?v=attachment-preview-1";
 
 const apiClient = createApiClient(document.body?.dataset.csrfToken || "");
 

@@ -88,6 +88,7 @@ def create_app():
             "firebase_auth_enabled": firebase_auth_configured(),
             "firebase_web_config": get_firebase_web_config(),
             "csrf_token": get_csrf_token(),
+            "memory_debug_enabled": settings.memory_debug_enabled,
         }
 
     register_blueprints(app, deps)

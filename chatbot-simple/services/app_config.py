@@ -60,6 +60,7 @@ class AppSettings:
     max_attachment_chars: int
     max_total_attachment_chars: int
     ai_request_timeout: int
+    memory_debug_enabled: bool
 
     @property
     def is_production(self):
@@ -115,4 +116,5 @@ def load_settings(app_root):
         max_attachment_chars=env_int("MAX_ATTACHMENT_CHARS", 120_000),
         max_total_attachment_chars=env_int("MAX_TOTAL_ATTACHMENT_CHARS", 240_000),
         ai_request_timeout=env_int("AI_REQUEST_TIMEOUT", 60),
+        memory_debug_enabled=env_bool("NEXA_MEMORY_DEBUG", False),
     )

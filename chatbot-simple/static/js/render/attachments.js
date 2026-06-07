@@ -76,6 +76,7 @@ export function createPendingAttachmentChip(attachment, context) {
         previewButton.type = "button";
         previewButton.className = "attachment-image-trigger";
         previewButton.dataset.action = "open-image-preview";
+        previewButton.dataset.attachmentId = attachment.id || "";
         previewButton.setAttribute("aria-label", `Open preview for ${attachment.name}`);
 
         const preview = document.createElement("img");
@@ -85,18 +86,10 @@ export function createPendingAttachmentChip(attachment, context) {
         previewButton.appendChild(preview);
         chip.appendChild(previewButton);
     } else {
-        const icon = document.createElement("i");
-        icon.dataset.lucide = "file-text";
-        chip.appendChild(icon);
+        const name = document.createElement("span");
+        name.textContent = attachment.name;
+        chip.appendChild(name);
     }
-
-    const name = document.createElement("span");
-    name.textContent = attachment.name;
-    chip.appendChild(name);
-
-    const size = document.createElement("small");
-    size.textContent = attachment.isReading ? "Preparing" : context.formatBytes(attachment.size);
-    chip.appendChild(size);
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";

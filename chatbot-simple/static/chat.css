@@ -1769,12 +1769,11 @@ html[data-theme="light"] .user-message .text-bubble {
 .composer .attachment-chip {
     position: relative;
     max-width: 220px;
-    min-height: 58px;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 36px;
+    display: flex;
     align-items: center;
     gap: 9px;
-    padding: 8px 9px;
+    padding: 8px 34px 8px 12px;
     border-color: var(--line-strong);
     border-radius: var(--radius-md);
     color: var(--text-soft);
@@ -1782,13 +1781,12 @@ html[data-theme="light"] .user-message .text-bubble {
 }
 
 .composer .attachment-chip.image-chip {
-    width: 156px;
-    min-height: 116px;
-    max-width: 156px;
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    gap: 6px;
-    padding: 7px;
+    width: 112px;
+    min-height: 82px;
+    max-width: 112px;
+    padding: 0;
+    border: 0;
+    background: transparent;
 }
 
 .attachment-chip.image-chip .attachment-image-trigger {
@@ -1798,7 +1796,7 @@ html[data-theme="light"] .user-message .text-bubble {
 
 .composer .attachment-chip.image-chip .attachment-image-trigger {
     width: 100%;
-    height: 86px;
+    height: 82px;
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     background: rgba(0, 0, 0, 0.2);
@@ -1818,17 +1816,9 @@ html[data-theme="light"] .user-message .text-bubble {
     object-fit: cover;
 }
 
-.composer .attachment-chip.image-chip > span,
-.composer .attachment-chip.image-chip > small {
-    max-width: calc(100% - 28px);
-}
-
-.composer .attachment-chip.image-chip > span {
-    font-size: 0.72rem;
-}
-
-.composer .attachment-chip.image-chip > small {
-    font-size: 0.66rem;
+.composer .attachment-chip:not(.image-chip) > span {
+    max-width: 100%;
+    line-height: 1.2;
 }
 
 .attachment-pill.image-pill {
@@ -1858,8 +1848,8 @@ html[data-theme="light"] .user-message .text-bubble {
 
 .composer .attachment-chip button:not(.attachment-image-trigger) {
     position: absolute;
-    top: 7px;
-    right: 7px;
+    top: 6px;
+    right: 6px;
     color: #ffffff;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
@@ -2050,6 +2040,12 @@ body.home-empty .composer {
     border-color: var(--primary-line);
     background: var(--composer-bg-focus);
     box-shadow: 0 20px 72px rgba(0, 0, 0, 0.5);
+}
+
+.composer.drag-over {
+    border-color: var(--primary);
+    background: var(--composer-bg-focus);
+    box-shadow: 0 0 0 3px var(--primary-soft), 0 20px 72px rgba(0, 0, 0, 0.5);
 }
 
 .attachment-tray {
@@ -3325,14 +3321,14 @@ body.home-empty .composer {
     }
 
     .composer .attachment-chip.image-chip {
-        width: 132px;
-        min-height: 104px;
-        max-width: 132px;
+        width: 96px;
+        min-height: 72px;
+        max-width: 96px;
     }
 
     .composer .attachment-chip.image-chip .attachment-image-trigger {
         width: 100%;
-        height: 76px;
+        height: 72px;
     }
 
     .composer .attachment-preview {

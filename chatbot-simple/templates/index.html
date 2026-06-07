@@ -38,6 +38,7 @@
     data-authenticated="{{ 'true' if current_user else 'false' }}"
     data-csrf-token="{{ csrf_token }}"
     data-require-auth="true"
+    data-memory-debug="{{ 'true' if memory_debug_enabled else 'false' }}"
 >
     <a class="skip-link" href="#chatMain">Skip to chat</a>
 
@@ -312,7 +313,7 @@
 
     <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
 
-    <script type="module" src="{{ url_for('static', filename='js/main.js') }}?v=workspace-modules-1"></script>
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}?v=workspace-modules-2"></script>
     <script type="module" src="{{ url_for('static', filename='firebase-auth.js') }}"></script>
 </body>
 </html>

@@ -166,6 +166,16 @@ document.addEventListener("DOMContentLoaded", () => {
     let preferencesSaveTimer = null;
     let welcomePromptIndex = Math.floor(Math.random() * WELCOME_PROMPTS.length);
 
+    const isMemoryDebugEnabled = document.body?.dataset.memoryDebug === "true";
+
+    function memoryDebug(label, details = {}) {
+        if (!isMemoryDebugEnabled) {
+            return;
+        }
+
+        console.warn(`[Nexa memory debug] ${label}`, details);
+    }
+
     function createFreshState() {
         const conversation = createConversation();
 
@@ -385,9 +395,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const conversation = createConversation();
             state.conversations.unshift(conversation);
             state.activeConversationId = conversation.id;
+            memoryDebug("created fallback conversation", {
+                conversationId: conversation.id,
+                activeConversationId: state.activeConversationId,
+            });
             return conversation;
         }
 
+        memoryDebug("recovered missing active conversation", {
+            previousActiveConversationId: state.activeConversationId,
+            nextActiveConversationId: state.conversations[0].id,
+        });
         state.activeConversationId = state.conversations[0].id;
         return state.conversations[0];
     }
@@ -1698,6 +1716,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function streamAIResponse(payload, onEvent) {
+        memoryDebug("request payload", {
+            conversationId: payload.conversationId,
+            userMessageId: payload.userMessageId,
+            assistantMessageId: payload.assistantMessageId,
+            messagePreview: String(payload.message || "").slice(0, 160),
+        });
         abortController = new AbortController();
         const response = await apiFetch("/api/chat/stream", {
             method: "POST",
@@ -1776,6 +1800,19 @@ document.addEventListener("DOMContentLoaded", () => {
             assistantMessageId: assistantMessage.id,
         };
 
+        memoryDebug("run assistant request", {
+            activeConversationId: state.activeConversationId,
+            payloadConversationId: payload.conversationId,
+            localConversationId: conversation.id,
+            localMessageCount: conversation.messages.length,
+            lastLocalMessages: conversation.messages.slice(-4).map((message) => ({
+                id: message.id,
+                role: message.role,
+                isLoading: message.isLoading,
+                textPreview: String(message.text || "").slice(0, 120),
+            })),
+            isSending,
+        });
         setLoading(true, assistantMessage.id);
         renderApp({ forceScroll });
         beginStreamingRender(assistantMessage);
@@ -1784,6 +1821,14 @@ document.addEventListener("DOMContentLoaded", () => {
             await streamAIResponse(payload, (event) => {
                 if (event.type === "meta") {
                     const previousAssistantId = assistantMessage.id;
+                    memoryDebug("stream meta", {
+                        previousActiveConversationId: state.activeConversationId,
+                        localConversationId: conversation.id,
+                        backendConversationId: event.conversationId,
+                        backendConversationMessages: event.conversation?.messages?.length,
+                        userMessageId: event.userMessageId,
+                        assistantMessageId: event.assistantMessageId,
+                    });
                     assistantMessage.provider = event.provider || assistantMessage.provider || null;
                     assistantMessage.model = event.model || assistantMessage.model || null;
                     if (event.conversationId) {
@@ -1821,6 +1866,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 if (event.type === "done") {
+                    memoryDebug("stream done", {
+                        activeConversationId: state.activeConversationId,
+                        localConversationId: conversation.id,
+                        assistantMessageId: assistantMessage.id,
+                        textLength: assistantMessage.text.length,
+                    });
                     assistantMessage.provider = event.provider || assistantMessage.provider || null;
                     assistantMessage.model = event.model || assistantMessage.model || null;
                     assistantMessage.isLoading = false;
@@ -1877,6 +1928,13 @@ document.addEventListener("DOMContentLoaded", () => {
             isLoading: true,
         });
 
+        memoryDebug("submit message", {
+            activeConversationId: state.activeConversationId,
+            conversationId: conversation.id,
+            wasEmpty,
+            existingMessageCount: conversation.messages.length,
+            textPreview: text.slice(0, 160),
+        });
         conversation.messages.push(userMessage, assistantMessage);
         conversation.updatedAt = Date.now();
 
@@ -2201,8 +2259,9 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        openDialog(els.imagePreviewDialog, els.imagePreviewCloseButton);
+        closeAllDialogs();
         setImagePreview(els.imagePreviewLarge, attachment, source);
+        openDialogElement(els.imagePreviewDialog, els.imagePreviewCloseButton);
     }
 
     function closeImagePreview() {
@@ -2298,6 +2357,126 @@ document.addEventListener("DOMContentLoaded", () => {
             : "";
 
         return IMAGE_MIME_TYPES.has(file.type) || ["png", "jpg", "jpeg", "webp", "gif"].includes(extension);
+    }
+
+    function getClipboardImageFiles(event) {
+        const clipboardData = event.clipboardData;
+        const files = [];
+        const seenFiles = new Set();
+        const seenFileSignatures = new Set();
+
+        function clipboardFileSignature(file) {
+            return `${file.type || ""}:${file.size || 0}`;
+        }
+
+        function addImageFile(file) {
+            if (!file || seenFiles.has(file)) {
+                return;
+            }
+
+            if (String(file.type || "").startsWith("image/") || isSupportedImageFile(file)) {
+                const fileSignature = clipboardFileSignature(file);
+                if (seenFileSignatures.has(fileSignature)) {
+                    return;
+                }
+
+                seenFiles.add(file);
+                seenFileSignatures.add(fileSignature);
+                files.push(file);
+            }
+        }
+
+        Array.from(clipboardData?.items || []).forEach((item) => {
+            if (item.kind !== "file") {
+                return;
+            }
+
+            if (!String(item.type || "").startsWith("image/")) {
+                return;
+            }
+
+            addImageFile(item.getAsFile());
+        });
+
+        Array.from(clipboardData?.files || []).forEach(addImageFile);
+
+        return files;
+    }
+
+    function shouldSkipDocumentPaste(event) {
+        const target = event.target;
+
+        if (target === els.messageInput) {
+            return false;
+        }
+
+        if (!(target instanceof Element)) {
+            return false;
+        }
+
+        const editableTarget = target.closest("[contenteditable]");
+        if (editableTarget && editableTarget.getAttribute("contenteditable") !== "false") {
+            return true;
+        }
+
+        return Boolean(target.closest("input, textarea, select"));
+    }
+
+    function handleImagePaste(event) {
+        if (event.defaultPrevented || shouldSkipDocumentPaste(event)) {
+            return;
+        }
+
+        const files = getClipboardImageFiles(event);
+
+        if (files.length === 0) {
+            return;
+        }
+
+        event.preventDefault();
+        addFiles(files);
+    }
+
+    function getDroppedFiles(event) {
+        return Array.from(event.dataTransfer?.files || []);
+    }
+
+    function hasDroppedFiles(event) {
+        if (getDroppedFiles(event).length > 0) {
+            return true;
+        }
+
+        return Array.from(event.dataTransfer?.types || []).includes("Files");
+    }
+
+    function handleFileDrag(event) {
+        if (!hasDroppedFiles(event)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        els.messageForm.classList.add("drag-over");
+    }
+
+    function handleFileDragLeave(event) {
+        if (event.relatedTarget instanceof Node && els.messageForm.contains(event.relatedTarget)) {
+            return;
+        }
+
+        els.messageForm.classList.remove("drag-over");
+    }
+
+    function handleFileDrop(event) {
+        const files = getDroppedFiles(event);
+
+        if (files.length === 0) {
+            return;
+        }
+
+        event.preventDefault();
+        els.messageForm.classList.remove("drag-over");
+        addFiles(files);
     }
 
     function getImageMimeType(file) {
@@ -2531,6 +2710,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         els.attachButton.addEventListener("click", () => els.fileInput.click());
         els.fileInput.addEventListener("change", () => addFiles(els.fileInput.files));
+        document.addEventListener("paste", handleImagePaste);
+        els.messageForm.addEventListener("dragenter", handleFileDrag);
+        els.messageForm.addEventListener("dragover", handleFileDrag);
+        els.messageForm.addEventListener("dragleave", handleFileDragLeave);
+        els.messageForm.addEventListener("drop", handleFileDrop);
         els.stopButton.addEventListener("click", stopGeneration);
         els.mobileMenuButton?.addEventListener("click", () => setSidebarOpen(true));
         els.sidebarCloseButton?.addEventListener("click", () => setSidebarOpen(false));
@@ -2545,25 +2729,28 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         els.attachmentTray.addEventListener("click", (event) => {
-            const previewButton = event.target.closest("[data-action='open-image-preview']");
+            const removeButton = event.target.closest("[data-action='remove-attachment']");
 
-            if (previewButton) {
-                const attachment = findAttachmentFromElement(previewButton);
+            if (removeButton) {
+                const chip = event.target.closest(".attachment-chip");
+                removeAttachment(chip?.dataset.attachmentId);
+                return;
+            }
+
+            const previewButton = event.target.closest("[data-action='open-image-preview']");
+            const imageChip = event.target.closest(".attachment-chip.image-chip");
+
+            if (previewButton || imageChip) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const attachment = findAttachmentFromElement(previewButton || imageChip);
 
                 if (attachment) {
                     openImagePreview(attachment);
                 }
                 return;
             }
-
-            const removeButton = event.target.closest("[data-action='remove-attachment']");
-
-            if (!removeButton) {
-                return;
-            }
-
-            const chip = event.target.closest(".attachment-chip");
-            removeAttachment(chip?.dataset.attachmentId);
         });
 
         els.conversationList.addEventListener("click", (event) => {

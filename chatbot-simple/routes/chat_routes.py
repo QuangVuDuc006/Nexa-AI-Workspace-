@@ -1,5 +1,6 @@
-from flask import Blueprint, Response, jsonify, stream_with_context
+from flask import Blueprint, Response, current_app, jsonify, stream_with_context
 
+from services.ai.context_builder import build_conversation_context
 from services.ai.errors import AIProviderError, UpstreamAPIError
 from services.auth import login_required
 from services.database import db_session
@@ -17,6 +18,13 @@ from .common import (
 )
 
 
+def log_memory_debug(deps, message, extra):
+    if not deps.settings.memory_debug_enabled:
+        return
+
+    current_app.logger.warning(message, extra=extra)
+
+
 def create_chat_blueprint(deps):
     bp = Blueprint("chat_routes", __name__)
 
@@ -26,23 +34,55 @@ def create_chat_blueprint(deps):
     @csrf_protect
     @rate_limit("chat_rate_limit_per_window")
     def chat():
-        from flask import current_app
-
         db = db_session()
         user = db_user(db)
 
         try:
             payload = parse_chat_payload(deps, db, user.id)
+            log_memory_debug(
+                deps,
+                "memory_debug chat incoming",
+                {
+                    "conversation_id": payload["conversation_id"],
+                    "user_message_id": payload["user_message_id"],
+                    "assistant_message_id": payload["assistant_message_id"],
+                    "message_preview": payload["message"][:200],
+                },
+            )
             chat_router, provider_id, model = selected_chat_router(deps, db, user.id)
+            context_message = build_conversation_context(
+                payload["conversation_id"],
+                payload["message"],
+                db=db,
+                user_id=user.id,
+            )
+            log_memory_debug(
+                deps,
+                "memory_debug chat provider_context",
+                {
+                    "conversation_id": payload["conversation_id"],
+                    "context_length": len(context_message),
+                    "context_preview": context_message[:800],
+                },
+            )
             stream = chat_router.prepare_stream(
                 provider_id,
-                payload["message"],
+                context_message,
                 model,
                 payload["attachments"],
             )
             payload["provider"] = stream.provider
             payload["model"] = stream.model
             conversation, user_message, assistant_message = prepare_persisted_chat(deps, payload, db, user.id)
+            log_memory_debug(
+                deps,
+                "memory_debug chat resolved_conversation",
+                {
+                    "incoming_conversation_id": payload["conversation_id"],
+                    "resolved_conversation_id": conversation.id,
+                    "persisted_message_count": len(conversation.messages),
+                },
+            )
             db.commit()
             reply_parts = []
 
@@ -60,6 +100,16 @@ def create_chat_blueprint(deps):
                 stream.model,
             )
             db.commit()
+            log_memory_debug(
+                deps,
+                "memory_debug chat assistant_persisted",
+                {
+                    "conversation_id": conversation.id,
+                    "assistant_message_id": assistant_message.id,
+                    "reply_length": len(reply),
+                    "reply_preview": reply[:300],
+                },
+            )
             return jsonify({
                 "reply": reply,
                 "provider": stream.provider,
@@ -94,16 +144,50 @@ def create_chat_blueprint(deps):
 
         try:
             payload = parse_chat_payload(deps, db, user.id)
+            log_memory_debug(
+                deps,
+                "memory_debug stream incoming",
+                {
+                    "conversation_id": payload["conversation_id"],
+                    "user_message_id": payload["user_message_id"],
+                    "assistant_message_id": payload["assistant_message_id"],
+                    "message_preview": payload["message"][:200],
+                },
+            )
             chat_router, provider_id, model = selected_chat_router(deps, db, user.id)
+            context_message = build_conversation_context(
+                payload["conversation_id"],
+                payload["message"],
+                db=db,
+                user_id=user.id,
+            )
+            log_memory_debug(
+                deps,
+                "memory_debug stream provider_context",
+                {
+                    "conversation_id": payload["conversation_id"],
+                    "context_length": len(context_message),
+                    "context_preview": context_message[:800],
+                },
+            )
             stream = chat_router.prepare_stream(
                 provider_id,
-                payload["message"],
+                context_message,
                 model,
                 payload["attachments"],
             )
             payload["provider"] = stream.provider
             payload["model"] = stream.model
             conversation, user_message, assistant_message = prepare_persisted_chat(deps, payload, db, user.id)
+            log_memory_debug(
+                deps,
+                "memory_debug stream resolved_conversation",
+                {
+                    "incoming_conversation_id": payload["conversation_id"],
+                    "resolved_conversation_id": conversation.id,
+                    "persisted_message_count": len(conversation.messages),
+                },
+            )
             db.commit()
         except ValueError as error:
             db.rollback()
@@ -146,6 +230,16 @@ def create_chat_blueprint(deps):
                     stream.model,
                 )
                 persisted_db.commit()
+                log_memory_debug(
+                    deps,
+                    "memory_debug stream assistant_persisted",
+                    {
+                        "conversation_id": conversation.id,
+                        "assistant_message_id": assistant_message.id,
+                        "reply_length": len("".join(reply_parts)),
+                        "reply_preview": "".join(reply_parts)[:300],
+                    },
+                )
                 yield json_stream_event({
                     "type": "done",
                     "provider": stream.provider,
