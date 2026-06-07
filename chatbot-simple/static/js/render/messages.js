@@ -100,6 +100,7 @@ export function createMessageElement(message, context) {
         } else {
             content.appendChild(context.renderMessageContent(message.text, message.isError, {
                 markdown: true,
+                citations: message.citations || [],
             }));
 
             if (!message.isError) {

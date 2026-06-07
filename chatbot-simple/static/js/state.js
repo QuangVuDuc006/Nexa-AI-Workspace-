@@ -17,6 +17,7 @@ export function createMessage(role, text, extra = {}) {
         provider: null,
         model: null,
         attachments: [],
+        citations: [],
         feedback: null,
         isError: false,
         isLoading: false,

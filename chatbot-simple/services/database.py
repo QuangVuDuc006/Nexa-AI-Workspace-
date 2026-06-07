@@ -50,6 +50,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    documents: Mapped[list["Document"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class Conversation(Base):
@@ -205,6 +209,45 @@ Index("ix_user_memories_user_status_updated", UserMemory.user_id, UserMemory.sta
 Index("ix_user_memories_user_key_source", UserMemory.user_id, UserMemory.key, UserMemory.source)
 
 
+class Document(Base):
+    __tablename__ = "documents"
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("doc"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    filename: Mapped[str] = mapped_column(String(180), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(120), default="application/octet-stream", nullable=False)
+    storage_path: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="documents")
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="DocumentChunk.chunk_index",
+    )
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("chunk"))
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    section_title: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    start_char: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    end_char: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    document: Mapped[Document] = relationship(back_populates="chunks")
+
+
+Index("ix_document_chunks_document_index", DocumentChunk.document_id, DocumentChunk.chunk_index)
+
+
 def ensure_sqlite_conversation_summary_columns(engine):
     with engine.begin() as connection:
         columns = {
@@ -224,6 +267,35 @@ def ensure_sqlite_conversation_summary_columns(engine):
             connection.exec_driver_sql("ALTER TABLE conversations ADD COLUMN summary_updated_at DATETIME")
 
 
+def ensure_sqlite_rag_tables(engine):
+    Base.metadata.tables["documents"].create(bind=engine, checkfirst=True)
+    Base.metadata.tables["document_chunks"].create(bind=engine, checkfirst=True)
+    with engine.begin() as connection:
+        document_columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(documents)").all()
+        }
+        if "storage_path" not in document_columns:
+            connection.exec_driver_sql("ALTER TABLE documents ADD COLUMN storage_path TEXT NOT NULL DEFAULT ''")
+
+        columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(document_chunks)").all()
+        }
+
+        if "section_title" not in columns:
+            connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN section_title VARCHAR(240)")
+
+        if "start_char" not in columns:
+            connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN start_char INTEGER")
+
+        if "end_char" not in columns:
+            connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN end_char INTEGER")
+
+        if "source_excerpt" not in columns:
+            connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN source_excerpt TEXT")
+
+
 def ensure_postgres_conversation_summary_columns(engine):
     with engine.begin() as connection:
         connection.exec_driver_sql("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS summary TEXT NOT NULL DEFAULT ''")
@@ -235,6 +307,17 @@ def ensure_postgres_conversation_summary_columns(engine):
         )
 
 
+def ensure_postgres_rag_tables(engine):
+    Base.metadata.tables["documents"].create(bind=engine, checkfirst=True)
+    Base.metadata.tables["document_chunks"].create(bind=engine, checkfirst=True)
+    with engine.begin() as connection:
+        connection.exec_driver_sql("ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_path TEXT NOT NULL DEFAULT ''")
+        connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS section_title VARCHAR(240)")
+        connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS start_char INTEGER")
+        connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS end_char INTEGER")
+        connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS source_excerpt TEXT")
+
+
 def init_database(app, database_url):
     global engine
     connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
@@ -244,8 +327,10 @@ def init_database(app, database_url):
 
     if database_url.startswith("sqlite"):
         ensure_sqlite_conversation_summary_columns(engine)
+        ensure_sqlite_rag_tables(engine)
     elif database_url.startswith("postgresql"):
         ensure_postgres_conversation_summary_columns(engine)
+        ensure_postgres_rag_tables(engine)
 
     @app.teardown_appcontext
     def remove_session(_error=None):

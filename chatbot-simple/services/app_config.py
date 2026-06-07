@@ -61,6 +61,14 @@ class AppSettings:
     max_total_attachment_chars: int
     ai_request_timeout: int
     memory_debug_enabled: bool
+    rag_enabled: bool
+    vector_store: str
+    embedding_provider: str
+    embedding_model: str
+    embedding_api_key: str
+    rag_top_k: int
+    rag_chunk_size_chars: int
+    rag_chunk_overlap_chars: int
 
     @property
     def is_production(self):
@@ -117,4 +125,12 @@ def load_settings(app_root):
         max_total_attachment_chars=env_int("MAX_TOTAL_ATTACHMENT_CHARS", 240_000),
         ai_request_timeout=env_int("AI_REQUEST_TIMEOUT", 60),
         memory_debug_enabled=env_bool("NEXA_MEMORY_DEBUG", False),
+        rag_enabled=env_bool("RAG_ENABLED", True),
+        vector_store=env_value("VECTOR_STORE", "simple").lower() or "simple",
+        embedding_provider=env_value("EMBEDDING_PROVIDER", "local").lower() or "local",
+        embedding_model=env_value("EMBEDDING_MODEL", "local-hash-embedding"),
+        embedding_api_key=env_value("EMBEDDING_API_KEY"),
+        rag_top_k=max(1, env_int("RAG_TOP_K", 5)),
+        rag_chunk_size_chars=max(500, env_int("RAG_CHUNK_SIZE_CHARS", 3500)),
+        rag_chunk_overlap_chars=max(0, env_int("RAG_CHUNK_OVERLAP_CHARS", 500)),
     )

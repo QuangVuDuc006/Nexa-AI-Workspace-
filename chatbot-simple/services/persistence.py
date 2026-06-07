@@ -284,6 +284,7 @@ def hydrate_attachment_for_provider(db, user_id, raw_attachment):
 
     name = sanitize_filename(raw_attachment.get("name") or "attachment")
     mime_type = str(raw_attachment.get("mimeType") or raw_attachment.get("mime_type") or "text/plain").strip()
+    document_id = str(raw_attachment.get("documentId") or raw_attachment.get("document_id") or "").strip()
 
     try:
         size = int(raw_attachment.get("size") or 0)
@@ -307,7 +308,7 @@ def hydrate_attachment_for_provider(db, user_id, raw_attachment):
 
     content = str(raw_attachment.get("content") or "")
 
-    if not content.strip():
+    if not content.strip() and not document_id:
         return None
 
     return {
@@ -317,6 +318,7 @@ def hydrate_attachment_for_provider(db, user_id, raw_attachment):
         "mime_type": mime_type,
         "size": size,
         "content": content,
+        "document_id": document_id,
     }
 
 
@@ -337,6 +339,11 @@ def normalize_attachments_for_provider(db, user_id, raw_attachments, settings):
             continue
 
         if attachment["kind"] == "text":
+            if getattr(settings, "rag_enabled", False) and attachment.get("document_id"):
+                attachment["content"] = f"[Uploaded document indexed for retrieval: {attachment['name']}]"
+                attachments.append(attachment)
+                continue
+
             remaining_chars = settings.max_total_attachment_chars - total_chars
 
             if remaining_chars <= 0:

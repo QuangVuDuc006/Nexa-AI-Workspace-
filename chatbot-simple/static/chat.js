@@ -19,6 +19,7 @@ import {
     setImagePreview,
 } from "./js/features/dialogs.js";
 import { createFeedbackPayload, createResponseFooter } from "./js/features/feedback.js";
+import { replaceCitationMarkers } from "./js/render/citations.js";
 import {
     getProviderModelName,
     renderActiveProviderSwitcher as renderProviderSwitcher,
@@ -227,6 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
             provider: message?.provider || null,
             model: message?.model || null,
             attachments: Array.isArray(message?.attachments) ? message.attachments : [],
+            citations: Array.isArray(message?.citations) ? message.citations : [],
             feedback: message?.feedback || null,
             isError: Boolean(message?.isError),
             isLoading: false,
@@ -1779,6 +1781,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (options.markdown && renderSanitizedMarkdown(fragment, text)) {
+            replaceCitationMarkers(fragment, options.citations || []);
             return fragment;
         }
 
@@ -1807,6 +1810,7 @@ document.addEventListener("DOMContentLoaded", () => {
             appendPlainText(fragment, part);
         });
 
+        replaceCitationMarkers(fragment, options.citations || []);
         return fragment;
     }
 
@@ -2127,6 +2131,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                     assistantMessage.provider = event.provider || assistantMessage.provider || null;
                     assistantMessage.model = event.model || assistantMessage.model || null;
+                    assistantMessage.citations = Array.isArray(event.citations) ? event.citations : assistantMessage.citations || [];
                     if (event.conversationId) {
                         conversation.id = event.conversationId;
                         state.activeConversationId = event.conversationId;
@@ -2170,6 +2175,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                     assistantMessage.provider = event.provider || assistantMessage.provider || null;
                     assistantMessage.model = event.model || assistantMessage.model || null;
+                    assistantMessage.citations = Array.isArray(event.citations) ? event.citations : assistantMessage.citations || [];
                     assistantMessage.isLoading = false;
                     finalizeStreamingRender(assistantMessage, { forceScroll: true });
                 }

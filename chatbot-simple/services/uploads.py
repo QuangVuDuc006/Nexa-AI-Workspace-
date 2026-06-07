@@ -52,10 +52,15 @@ def sanitize_filename(filename):
 
 
 def extract_text(filename, mime_type, data):
+    pages = extract_text_pages(filename, mime_type, data)
+    return "\n\n".join(page["content"] for page in pages).strip()
+
+
+def extract_text_pages(filename, mime_type, data):
     extension = extension_for(filename)
 
     if extension in TEXT_EXTENSIONS or (mime_type or "").lower() in TEXT_MIME_TYPES:
-        return data.decode("utf-8", errors="replace")
+        return [{"content": data.decode("utf-8", errors="replace"), "page_number": None}]
 
     if extension == "pdf":
         try:
@@ -65,7 +70,15 @@ def extract_text(filename, mime_type, data):
 
         try:
             reader = PdfReader(BytesIO(data))
-            return "\n\n".join(page.extract_text() or "" for page in reader.pages).strip()
+            pages = []
+
+            for index, page in enumerate(reader.pages, start=1):
+                content = (page.extract_text() or "").strip()
+
+                if content:
+                    pages.append({"content": content, "page_number": index})
+
+            return pages
         except Exception as error:
             raise UploadError("Could not extract text from this PDF.", code="pdf_extraction_failed") from error
 
@@ -78,19 +91,14 @@ def extract_text(filename, mime_type, data):
         try:
             document = Document(BytesIO(data))
             paragraphs = [paragraph.text for paragraph in document.paragraphs if paragraph.text]
-            return "\n".join(paragraphs).strip()
+            return [{"content": "\n".join(paragraphs).strip(), "page_number": None}]
         except Exception as error:
             raise UploadError("Could not extract text from this DOCX file.", code="docx_extraction_failed") from error
 
     raise UploadError("Unsupported file type.")
 
 
-def file_to_data_url(mime_type, data):
-    encoded = base64.b64encode(data).decode("ascii")
-    return f"data:{mime_type};base64,{encoded}"
-
-
-def process_uploaded_file(file_storage, settings):
+def read_uploaded_file(file_storage, settings):
     filename = sanitize_filename(file_storage.filename)
     raw = file_storage.read()
     size = len(raw)
@@ -111,6 +119,28 @@ def process_uploaded_file(file_storage, settings):
             status_code=413,
             code="file_too_large",
         )
+
+    return {
+        "filename": filename,
+        "raw": raw,
+        "size": size,
+        "mime_type": mime_type,
+        "kind": kind,
+    }
+
+
+def file_to_data_url(mime_type, data):
+    encoded = base64.b64encode(data).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
+def process_uploaded_file(file_storage, settings):
+    uploaded = read_uploaded_file(file_storage, settings)
+    filename = uploaded["filename"]
+    raw = uploaded["raw"]
+    size = uploaded["size"]
+    mime_type = uploaded["mime_type"]
+    kind = uploaded["kind"]
 
     if kind == "image":
         if mime_type not in IMAGE_MIME_TYPES:
@@ -149,4 +179,34 @@ def process_uploaded_file(file_storage, settings):
         "mime_type": mime_type,
         "size": size,
         "content": content[: settings.max_attachment_chars],
+        "_source_bytes": raw,
+    }
+
+
+def process_uploaded_document(file_storage, settings):
+    uploaded = read_uploaded_file(file_storage, settings)
+
+    if uploaded["kind"] == "image":
+        raise UploadError("Images are not supported for document RAG search.", code="unsupported_document")
+
+    pages = extract_text_pages(uploaded["filename"], uploaded["mime_type"], uploaded["raw"])
+    pages = [
+        {
+            "content": str(page.get("content") or "").strip(),
+            "page_number": page.get("page_number"),
+        }
+        for page in pages
+        if str(page.get("content") or "").strip()
+    ]
+
+    if not pages:
+        raise UploadError(f"No readable text was found in {uploaded['filename']}.", code="empty_extracted_text")
+
+    return {
+        "filename": uploaded["filename"],
+        "mime_type": uploaded["mime_type"],
+        "size": uploaded["size"],
+        "raw": uploaded["raw"],
+        "pages": pages,
+        "content": "\n\n".join(page["content"] for page in pages).strip(),
     }

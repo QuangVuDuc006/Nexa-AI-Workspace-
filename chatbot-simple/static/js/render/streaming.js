@@ -1,4 +1,5 @@
 import { STREAM_RENDER_INTERVAL_MS } from "../utils/constants.js";
+import { replaceCitationMarkers } from "./citations.js";
 import { renderKatexMathInElement } from "./markdown.js";
 
 function createStreamingTextNode(state) {
@@ -32,6 +33,7 @@ function renderStreamingMarkdownContent(state, force = false, context) {
     }
 
     state.content.replaceChildren(rendered.fragment);
+    replaceCitationMarkers(state.content, state.citations || []);
     state.textNode = null;
     state.lastRenderedHtml = rendered.html;
 
@@ -79,6 +81,7 @@ export function beginStreamingRender(message, context) {
         renderTimerId: null,
         lastRenderTime: 0,
         lastRenderedHtml: "",
+        citations: message.citations || [],
     };
 
     context.setStreamingRenderState(nextState);
@@ -119,6 +122,7 @@ export function appendStreamingChunk(message, chunk, context) {
     }
 
     state.text += chunk;
+    state.citations = message.citations || [];
 
     // Streaming can produce many tiny tokens. Buffering them and rendering
     // Markdown on a short throttle keeps formatting progressive while the
@@ -149,6 +153,7 @@ export function finalizeStreamingRender(message, options = {}, context) {
 
     content.replaceChildren(context.renderMessageContent(message.text, message.isError, {
         markdown: message.role === "ai",
+        citations: message.citations || [],
     }));
 
     if (!message.isError) {
