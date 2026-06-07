@@ -717,6 +717,28 @@ document.addEventListener("DOMContentLoaded", () => {
         renderIcons();
     }
 
+    function resetProviderForm() {
+        editingProviderId = "";
+        detectedProvider = null;
+
+        if (els.providerConnectionId) {
+            els.providerConnectionId.value = "";
+        }
+
+        if (els.apiKeyInput) {
+            els.apiKeyInput.value = "";
+            els.apiKeyInput.placeholder = "Paste API key";
+        }
+
+        if (els.apiBaseUrlInput) {
+            els.apiBaseUrlInput.value = "";
+        }
+
+        if (els.manualModelInput) {
+            els.manualModelInput.value = "";
+        }
+    }
+
     async function loadProviders() {
         try {
             const response = await apiFetch("/api/providers");
@@ -1087,18 +1109,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             setProviderWorkspace(data);
-            editingProviderId = data.savedProvider?.id || editingProviderId;
-            detectedProvider = data.savedProvider ? {
-                providerType: data.savedProvider.providerType,
-                provider: data.savedProvider.provider,
-                baseUrl: data.savedProvider.baseUrl,
-                models: data.savedProvider.models,
-                defaultModel: data.savedProvider.selectedModel,
-            } : detectedProvider;
-            if (els.apiKeyInput) {
-                els.apiKeyInput.value = "";
-                els.apiKeyInput.placeholder = data.savedProvider?.maskedApiKey || "Paste a new key to update";
-            }
+            resetProviderForm();
             renderProviderSettings();
             setProviderStatus("Connected");
             showToast("Provider saved and activated");

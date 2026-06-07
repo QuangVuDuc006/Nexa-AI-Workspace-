@@ -205,12 +205,47 @@ Index("ix_user_memories_user_status_updated", UserMemory.user_id, UserMemory.sta
 Index("ix_user_memories_user_key_source", UserMemory.user_id, UserMemory.key, UserMemory.source)
 
 
+def ensure_sqlite_conversation_summary_columns(engine):
+    with engine.begin() as connection:
+        columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(conversations)").all()
+        }
+
+        if "summary" not in columns:
+            connection.exec_driver_sql("ALTER TABLE conversations ADD COLUMN summary TEXT NOT NULL DEFAULT ''")
+
+        if "summary_message_count" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE conversations ADD COLUMN summary_message_count INTEGER NOT NULL DEFAULT 0"
+            )
+
+        if "summary_updated_at" not in columns:
+            connection.exec_driver_sql("ALTER TABLE conversations ADD COLUMN summary_updated_at DATETIME")
+
+
+def ensure_postgres_conversation_summary_columns(engine):
+    with engine.begin() as connection:
+        connection.exec_driver_sql("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS summary TEXT NOT NULL DEFAULT ''")
+        connection.exec_driver_sql(
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS summary_message_count INTEGER NOT NULL DEFAULT 0"
+        )
+        connection.exec_driver_sql(
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS summary_updated_at TIMESTAMP WITH TIME ZONE"
+        )
+
+
 def init_database(app, database_url):
     global engine
     connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
     engine = create_engine(database_url, pool_pre_ping=True, future=True, connect_args=connect_args)
     SessionLocal.configure(bind=engine)
     Base.metadata.create_all(bind=engine)
+
+    if database_url.startswith("sqlite"):
+        ensure_sqlite_conversation_summary_columns(engine)
+    elif database_url.startswith("postgresql"):
+        ensure_postgres_conversation_summary_columns(engine)
 
     @app.teardown_appcontext
     def remove_session(_error=None):
