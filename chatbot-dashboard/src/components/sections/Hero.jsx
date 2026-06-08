@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "../ui/Button";
 import { WorkspaceButton } from "../auth/WorkspaceButton";
@@ -12,6 +12,62 @@ import { usePrefersReducedMotion } from "../../hooks/usePrefersReducedMotion";
 import { heroContainer, heroItem, premiumEase } from "../../utils/motion";
 
 const Antigravity = lazy(() => import("../ui/Antigravity"));
+
+function DeferredAntigravity({ enabled }) {
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) {
+      setShouldLoad(false);
+      return undefined;
+    }
+
+    let timeoutId;
+    let idleId;
+    const load = () => setShouldLoad(true);
+
+    if ("requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(load, { timeout: 1800 });
+    } else {
+      timeoutId = window.setTimeout(load, 900);
+    }
+
+    return () => {
+      if (idleId) {
+        window.cancelIdleCallback(idleId);
+      }
+      window.clearTimeout(timeoutId);
+    };
+  }, [enabled]);
+
+  if (!enabled || !shouldLoad) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <Antigravity
+        className="antigravity-hero"
+        count={560}
+        mobileCount={0}
+        magnetRadius={14}
+        ringRadius={7.2}
+        waveSpeed={1}
+        waveAmplitude={2.2}
+        particleSize={1.35}
+        lerpSpeed={0.055}
+        color="#b887ff"
+        autoAnimate
+        particleVariance={0.9}
+        rotationSpeed={0.22}
+        depthFactor={0.85}
+        pulseSpeed={3.2}
+        particleShape="capsule"
+        fieldStrength={7.2}
+      />
+    </Suspense>
+  );
+}
 
 function HeroMockup() {
   const mobilePerformanceMode = useMobilePerformanceMode();
@@ -58,34 +114,15 @@ function HeroMockup() {
 export function Hero() {
   const reducedMotion = usePrefersReducedMotion();
   const mobilePerformanceMode = useMobilePerformanceMode();
+  const enableAntigravity = !reducedMotion && !mobilePerformanceMode;
 
   return (
     <section id="home" className="relative -mt-[74px] w-full overflow-hidden px-6 pb-12 pt-28 md:px-12 md:pb-14 md:pt-32 lg:px-16">
       <StarField />
-      {!reducedMotion && !mobilePerformanceMode && (
-        <Suspense fallback={null}>
-          <Antigravity
-            className="antigravity-hero"
-            count={760}
-            mobileCount={360}
-            magnetRadius={14}
-            ringRadius={7.2}
-            waveSpeed={1}
-            waveAmplitude={2.2}
-            particleSize={1.35}
-            lerpSpeed={0.055}
-            color="#b887ff"
-            autoAnimate
-            particleVariance={0.9}
-            rotationSpeed={0.22}
-            depthFactor={0.85}
-            pulseSpeed={3.2}
-            particleShape="capsule"
-            fieldStrength={7.2}
-          />
-        </Suspense>
+      <DeferredAntigravity enabled={enableAntigravity} />
+      {!mobilePerformanceMode && (
+        <OrbitalGlow className="left-1/2 top-[330px] h-[360px] w-[360px] -translate-x-1/2" />
       )}
-      <OrbitalGlow className="left-1/2 top-[330px] h-[360px] w-[360px] -translate-x-1/2" />
 
       <motion.div
         className="relative z-10 mx-auto grid max-w-4xl justify-items-center pt-14 text-center sm:pt-16 md:pt-20"

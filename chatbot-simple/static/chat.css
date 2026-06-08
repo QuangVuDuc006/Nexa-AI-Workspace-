@@ -1582,6 +1582,32 @@ body.home-empty .messages {
     margin: 0 auto;
 }
 
+.load-earlier-messages {
+    display: flex;
+    justify-content: center;
+}
+
+.load-earlier-messages-button {
+    min-height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted-strong);
+    background: var(--surface-low);
+    font-size: 0.78rem;
+    font-weight: 650;
+    transition:
+        color 160ms var(--ease),
+        background 160ms var(--ease),
+        border-color 160ms var(--ease);
+}
+
+.load-earlier-messages-button:hover {
+    color: var(--text);
+    border-color: var(--line-strong);
+    background: var(--surface-muted);
+}
+
 body.home-empty .chat-thread {
     width: min(900px, 100%);
     height: 100%;

@@ -3,7 +3,6 @@ import {
     findMathToken,
     normalizeEscapedLatex,
     normalizeLatexSource,
-    renderAllAssistantMath,
     renderKatexMathInElement,
     restoreMathPlaceholders,
 } from "./js/render/markdown.js";
@@ -41,9 +40,11 @@ import { createConversation, createId, createMessage, readJsonStorage } from "./
 import {
     GLOBAL_STORAGE_KEY,
     IMAGE_MIME_TYPES,
+    INITIAL_RENDERED_MESSAGES,
     LEGACY_STORAGE_KEY,
     MAX_ATTACHMENT_BYTES,
     MAX_ATTACHMENTS,
+    RENDERED_MESSAGES_INCREMENT,
     TEXT_EXTENSIONS,
     THEME_STORAGE_KEY,
     WELCOME_PROMPTS,
@@ -188,6 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let renameTargetId = null;
     let confirmCallback = null;
     let streamingRenderState = null;
+    let renderedMessageLimits = {};
     let preferencesSaveTimer = null;
     let welcomePromptIndex = Math.floor(Math.random() * WELCOME_PROMPTS.length);
 
@@ -370,7 +372,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             renderApp({ forceScroll: true });
-            renderAllAssistantMath();
         } catch (error) {
             showToast(error.message || "Could not load conversations", "error");
         }
@@ -414,6 +415,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         return conversation;
+    }
+
+    function getRenderedMessageLimit(conversation) {
+        const conversationId = conversation?.id || state.activeConversationId || "default";
+        const savedLimit = Number(renderedMessageLimits[conversationId]) || INITIAL_RENDERED_MESSAGES;
+        const totalMessages = Array.isArray(conversation?.messages) ? conversation.messages.length : 0;
+
+        return Math.min(Math.max(savedLimit, INITIAL_RENDERED_MESSAGES), Math.max(totalMessages, INITIAL_RENDERED_MESSAGES));
+    }
+
+    function setRenderedMessageLimit(conversationId, limit) {
+        if (!conversationId) {
+            return;
+        }
+
+        renderedMessageLimits = {
+            ...renderedMessageLimits,
+            [conversationId]: limit,
+        };
     }
 
     function ensureConversation() {
@@ -1889,24 +1909,44 @@ document.addEventListener("DOMContentLoaded", () => {
         return empty;
     }
 
+    function createLoadEarlierMessagesButton(hiddenCount) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "load-earlier-messages";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "load-earlier-messages-button";
+        button.dataset.action = "load-earlier-messages";
+        button.textContent = `Load ${Math.min(hiddenCount, RENDERED_MESSAGES_INCREMENT)} earlier messages`;
+        wrapper.appendChild(button);
+        return wrapper;
+    }
+
     function renderChat(options = {}) {
         const conversation = getActiveConversation();
         const shouldScroll = options.forceScroll || (state.settings.autoScroll && isNearBottom());
         const isEmptyConversation = conversation.messages.length === 0;
+        const renderLimit = getRenderedMessageLimit(conversation);
+        const hiddenMessageCount = Math.max(0, conversation.messages.length - renderLimit);
+        const visibleMessages = hiddenMessageCount > 0
+            ? conversation.messages.slice(hiddenMessageCount)
+            : conversation.messages;
         els.chatThread.innerHTML = "";
         document.body.classList.toggle("home-empty", isEmptyConversation);
 
         if (isEmptyConversation) {
             els.chatThread.appendChild(createEmptyState());
         } else {
-            conversation.messages.forEach((message) => {
+            if (hiddenMessageCount > 0) {
+                els.chatThread.appendChild(createLoadEarlierMessagesButton(hiddenMessageCount));
+            }
+
+            visibleMessages.forEach((message) => {
                 const messageElement = createMessageElement(message);
                 els.chatThread.appendChild(messageElement);
             });
         }
 
         renderIcons();
-        renderAllAssistantMath();
 
         if (shouldScroll) {
             requestAnimationFrame(scrollMessagesToBottom);
@@ -1925,7 +1965,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const messageElement = createMessageElement(message);
         existing.replaceWith(messageElement);
         renderIcons();
-        renderAllAssistantMath();
 
         if (shouldScroll) {
             requestAnimationFrame(scrollMessagesToBottom);
@@ -2054,6 +2093,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function finalizeStreamingRender(message, options = {}) {
         return finalizeRenderedStreamingRender(message, options, getStreamingRenderContext());
+    }
+
+    function loadEarlierMessages() {
+        const conversation = getActiveConversation();
+        const previousScrollHeight = els.messagesViewport.scrollHeight;
+        const previousScrollTop = els.messagesViewport.scrollTop;
+        const currentLimit = getRenderedMessageLimit(conversation);
+        const nextLimit = Math.min(
+            conversation.messages.length,
+            currentLimit + RENDERED_MESSAGES_INCREMENT,
+        );
+
+        if (nextLimit <= currentLimit) {
+            return;
+        }
+
+        setRenderedMessageLimit(conversation.id, nextLimit);
+        renderChat();
+
+        requestAnimationFrame(() => {
+            const nextScrollHeight = els.messagesViewport.scrollHeight;
+            els.messagesViewport.scrollTop = previousScrollTop + (nextScrollHeight - previousScrollHeight);
+        });
     }
 
     function setLoading(isLoading, assistantId = null) {
@@ -3047,6 +3109,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         initModelSwitcher(els.activeModelSwitcher, activateProvider);
         els.activeProviderSelect?.addEventListener("change", () => activateProvider(els.activeProviderSelect.value));
+        els.chatThread?.addEventListener("click", (event) => {
+            const loadButton = event.target.closest("[data-action='load-earlier-messages']");
+
+            if (loadButton) {
+                loadEarlierMessages();
+            }
+        });
         els.personalizationForm?.addEventListener("submit", savePersonalization);
         els.memoryForm?.addEventListener("submit", saveMemory);
         els.memoryCancelEditButton?.addEventListener("click", resetMemoryForm);
@@ -3322,9 +3391,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     bindEvents();
-    window.addEventListener("load", () => {
-        renderAllAssistantMath();
-    });
     window.setInterval(rotateWelcomePrompt, 12000);
     renderApp({ forceScroll: true });
     loadProviders();

@@ -15,7 +15,7 @@ const stars = Array.from({ length: 118 }, (_, index) => ({
 export function StarField() {
   const reducedMotion = usePrefersReducedMotion();
   const mobilePerformanceMode = useMobilePerformanceMode();
-  const visibleStars = mobilePerformanceMode ? stars.slice(0, 44) : stars;
+  const visibleStars = mobilePerformanceMode ? stars.slice(0, 28) : stars;
   const shouldAnimate = !reducedMotion && !mobilePerformanceMode;
 
   return (

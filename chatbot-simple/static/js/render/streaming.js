@@ -1,4 +1,4 @@
-import { STREAM_RENDER_INTERVAL_MS } from "../utils/constants.js";
+import { STREAM_MATH_RENDER_INTERVAL_MS, STREAM_RENDER_INTERVAL_MS } from "../utils/constants.js";
 import { replaceCitationMarkers } from "./citations.js";
 import { renderKatexMathInElement } from "./markdown.js";
 
@@ -37,10 +37,20 @@ function renderStreamingMarkdownContent(state, force = false, context) {
     state.textNode = null;
     state.lastRenderedHtml = rendered.html;
 
-    try {
-        renderKatexMathInElement(state.content);
-    } catch (error) {
-        renderStreamingPlainText(state);
+    const hasMath = /[\\$]/.test(state.text);
+    const now = performance.now();
+    const shouldRenderMath = hasMath && (
+        force ||
+        now - state.lastMathRenderTime >= STREAM_MATH_RENDER_INTERVAL_MS
+    );
+
+    if (shouldRenderMath) {
+        try {
+            renderKatexMathInElement(state.content);
+            state.lastMathRenderTime = now;
+        } catch (error) {
+            renderStreamingPlainText(state);
+        }
     }
 }
 
@@ -80,6 +90,7 @@ export function beginStreamingRender(message, context) {
         text: message.text || "",
         renderTimerId: null,
         lastRenderTime: 0,
+        lastMathRenderTime: 0,
         lastRenderedHtml: "",
         citations: message.citations || [],
     };
