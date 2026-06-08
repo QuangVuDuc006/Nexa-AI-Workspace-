@@ -1,3 +1,5 @@
+import { renderModelSwitcher } from "../components/modelSwitcher.js";
+
 export function getProviderModelName(provider) {
     const selectedModel = provider?.selectedModel || "";
     const model = (provider?.models || []).find((item) => item.id === selectedModel);
@@ -16,34 +18,19 @@ export function renderActiveProviderSwitcher(els, providerWorkspace, isSending) 
     const active = providerWorkspace.activeProvider;
     const providers = [...providerWorkspace.providers];
 
-    if (els.activeModelPrefix) {
-        els.activeModelPrefix.textContent = active?.selectedModel ? "Using" : "";
-    }
-
     if (active?.isEnvironment && !providers.some((provider) => provider.id === active.id)) {
         providers.unshift(active);
     }
 
-    els.activeProviderSelect.textContent = "";
-
-    if (providers.length === 0) {
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = "No Model Selected";
-        els.activeProviderSelect.appendChild(option);
-        els.activeProviderSelect.disabled = true;
-        return;
-    }
-
-    providers.forEach((provider) => {
-        const option = document.createElement("option");
-        option.value = provider.id;
-        option.textContent = getProviderSwitcherLabel(provider);
-        els.activeProviderSelect.appendChild(option);
+    renderModelSwitcher({
+        root: els.activeModelSwitcher,
+        select: els.activeProviderSelect,
+        prefix: els.activeModelPrefix,
+        providers,
+        activeProvider: active,
+        activeProviderId: providerWorkspace.activeProviderId,
+        isDisabled: isSending || providers.every((provider) => provider.isEnvironment),
     });
-
-    els.activeProviderSelect.value = active?.id || providerWorkspace.activeProviderId || providers[0].id;
-    els.activeProviderSelect.disabled = isSending || providers.every((provider) => provider.isEnvironment);
 }
 
 export function setProviderStatusElements(els, message, isError = false) {

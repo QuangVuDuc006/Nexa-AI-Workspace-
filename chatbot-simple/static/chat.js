@@ -36,6 +36,7 @@ import {
     finalizeStreamingRender as finalizeRenderedStreamingRender,
     retargetStreamingRender as retargetRenderedStreamingRender,
 } from "./js/render/streaming.js";
+import { initModelSwitcher } from "./js/components/modelSwitcher.js";
 import { createConversation, createId, createMessage, readJsonStorage } from "./js/state.js";
 import {
     GLOBAL_STORAGE_KEY,
@@ -83,6 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
         searchInput: document.querySelector(".conversation-search-input"),
         renameChatButton: document.querySelector(".rename-chat-button"),
         themeToggleButton: document.querySelector(".theme-toggle-button"),
+        activeModelSwitcher: document.querySelector(".active-model-switcher"),
         activeModelPrefix: document.querySelector(".active-model-prefix"),
         activeProviderSelect: document.querySelector(".active-provider-select"),
         personalizationForm: document.querySelector(".personalization-form"),
@@ -178,6 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let pendingAttachments = [];
     let isSending = false;
     let isProcessingAttachment = false;
+    let providerActivationRequestId = 0;
     let abortController = null;
     let currentAssistantId = null;
     let copiedMessageId = null;
@@ -690,6 +693,21 @@ document.addEventListener("DOMContentLoaded", () => {
         return providerWorkspace.providers.find((provider) => provider.id === connectionId) || null;
     }
 
+    function setOptimisticActiveProvider(connectionId) {
+        const nextProviders = providerWorkspace.providers.map((provider) => ({
+            ...provider,
+            isActive: provider.id === connectionId,
+        }));
+        const activeProvider = nextProviders.find((provider) => provider.id === connectionId) || null;
+
+        providerWorkspace = {
+            ...providerWorkspace,
+            providers: nextProviders,
+            activeProvider,
+            activeProviderId: activeProvider?.id || "",
+        };
+    }
+
     function renderActiveProviderSwitcher() {
         renderProviderSwitcher(els, providerWorkspace, isSending);
     }
@@ -1121,10 +1139,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function activateProvider(connectionId) {
+    async function activateProvider(connectionId, {renderSettings = false} = {}) {
         const provider = getSavedProvider(connectionId);
         if (!provider || provider.isEnvironment) {
             return;
+        }
+
+        if (providerWorkspace.activeProviderId === connectionId && provider.isActive) {
+            return;
+        }
+
+        const previousWorkspace = providerWorkspace;
+        const requestId = ++providerActivationRequestId;
+
+        setOptimisticActiveProvider(connectionId);
+        renderControls();
+
+        if (renderSettings) {
+            renderProviderSettings();
         }
 
         try {
@@ -1137,13 +1169,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(data.error || "Could not switch provider.");
             }
 
+            if (requestId !== providerActivationRequestId) {
+                return;
+            }
+
             setProviderWorkspace(data);
-            renderProviderSettings();
+            if (renderSettings) {
+                renderProviderSettings();
+            }
             renderControls();
             showToast(`Using ${getProviderModelName(data.activeProvider)}`);
         } catch (error) {
+            if (requestId !== providerActivationRequestId) {
+                return;
+            }
+
+            providerWorkspace = previousWorkspace;
             showToast(error.message || "Could not switch provider", "error");
-            renderActiveProviderSwitcher();
+            renderControls();
+
+            if (renderSettings) {
+                renderProviderSettings();
+            }
         }
     }
 
@@ -2998,6 +3045,7 @@ document.addEventListener("DOMContentLoaded", () => {
             state.settings.autoScroll = els.autoScrollToggle.checked;
             saveState();
         });
+        initModelSwitcher(els.activeModelSwitcher, activateProvider);
         els.activeProviderSelect?.addEventListener("change", () => activateProvider(els.activeProviderSelect.value));
         els.personalizationForm?.addEventListener("submit", savePersonalization);
         els.memoryForm?.addEventListener("submit", saveMemory);
@@ -3043,7 +3091,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const action = button.dataset.providerAction;
 
             if (action === "activate") {
-                activateProvider(connectionId);
+                activateProvider(connectionId, {renderSettings: true});
             } else if (action === "edit") {
                 editProvider(connectionId);
             } else if (action === "delete") {

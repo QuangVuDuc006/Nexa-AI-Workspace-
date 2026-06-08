@@ -157,12 +157,25 @@
                         <span class="material-symbols-outlined">add</span>
                     </button>
                     <textarea class="message-input" rows="1" placeholder="Ask Nexa AI..." aria-label="Message"></textarea>
-                    <label class="active-model-switcher composer-model-switcher" title="Active AI provider and model">
-                        <span class="active-model-prefix">Using</span>
-                        <select class="active-provider-select" aria-label="Switch active AI model">
+                    <div class="active-model-switcher composer-model-switcher" title="Active AI provider and model">
+                        <select class="active-provider-select sr-only" aria-label="Switch active AI model" tabindex="-1" aria-hidden="true">
                             <option value="">No Model Selected</option>
                         </select>
-                    </label>
+                        <button
+                            class="model-switcher-button"
+                            type="button"
+                            aria-label="Switch active AI model"
+                            aria-haspopup="listbox"
+                            aria-expanded="false"
+                            aria-controls="activeModelSwitcherMenu"
+                        >
+                            <span class="active-model-prefix">Using</span>
+                            <span class="material-symbols-outlined model-switcher-current-icon" aria-hidden="true">smart_toy</span>
+                            <span class="model-switcher-current-name">No Model Selected</span>
+                            <span class="material-symbols-outlined model-switcher-chevron" aria-hidden="true">expand_more</span>
+                        </button>
+                        <div class="model-switcher-menu" id="activeModelSwitcherMenu" role="listbox" aria-label="Available AI models" aria-hidden="true"></div>
+                    </div>
                     <button class="stop-button" type="button" aria-label="Stop generating" hidden>
                         <span class="material-symbols-outlined">stop</span>
                         <span class="stop-button-label">Stop</span>
