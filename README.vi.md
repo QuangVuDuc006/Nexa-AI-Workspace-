@@ -444,7 +444,7 @@ File upload hiện được lưu ở local disk qua `UPLOAD_STORAGE_DIR`. Cách 
 
 ## Giới hạn hiện tại
 
-- Repository hiện chưa có file `LICENSE`.
+- Repository được cấp phép theo MIT License.
 - Landing app có build script nhưng chưa có frontend test script riêng.
 - File upload đang dùng local filesystem storage.
 - Storage roadmap có nhắc đến trash, archive và storage breakdown chi tiết hơn, nhưng chưa triển khai đầy đủ.
@@ -455,7 +455,7 @@ File upload hiện được lưu ở local disk qua `UPLOAD_STORAGE_DIR`. Cách 
 ## Roadmap
 
 - Thêm screenshot GitHub cho landing page, chat workspace, provider settings và luồng citation tài liệu.
-- Thêm file license chính thức.
+- Giữ license và metadata dự án luôn cập nhật.
 - Thêm frontend tests cho React landing app và các module chat UI quan trọng.
 - Hỗ trợ cloud/object storage cho tài liệu và ảnh upload.
 - Mở rộng quản lý tài liệu: trash, restore, archive, sorting và storage breakdown.

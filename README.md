@@ -443,7 +443,7 @@ Uploaded files are currently stored on local disk under `UPLOAD_STORAGE_DIR`. Th
 
 ## Current Limitations
 
-- The repository does not currently include a `LICENSE` file.
+- The repository is licensed under the MIT License.
 - The landing app has a build script but no dedicated frontend test script.
 - Uploaded files use local filesystem storage.
 - The storage roadmap mentions trash, archive, and richer storage breakdown ideas that are not fully implemented.
@@ -454,7 +454,7 @@ Uploaded files are currently stored on local disk under `UPLOAD_STORAGE_DIR`. Th
 ## Roadmap
 
 - Add committed GitHub screenshots for the landing page, chat workspace, provider settings, and document citation flow.
-- Add a formal license file.
+- Keep license and project metadata current.
 - Add frontend tests for the React landing app and critical chat UI modules.
 - Add cloud/object storage support for uploaded documents and images.
 - Add richer document management: trash, restore, archive, sorting, and storage breakdown views.
