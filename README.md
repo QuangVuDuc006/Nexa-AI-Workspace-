@@ -1,164 +1,184 @@
 <p align="center">
-  <img src="chatbot-dashboard\public\assets\Landing.png" alt="Nexa AI Logo" width="750">
+  <img src="chatbot-dashboard/public/assets/Landing.png" alt="Nexa AI landing preview" width="760">
+</p>
+
+<h1 align="center">Nexa AI Workspace</h1>
+
+<p align="center">
+  A self-hosted multi-provider AI chatbot workspace with encrypted BYOK provider settings, document-aware chat, memory, and a polished web interface.
 </p>
 
 <p align="center">
-  A Secure Multi-Provider AI Workspace
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.10.11-blue">
+  <img alt="Flask" src="https://img.shields.io/badge/Flask-3.0.3-black">
+  <img alt="React" src="https://img.shields.io/badge/React-18.3-61DAFB">
+  <img alt="Vite" src="https://img.shields.io/badge/Vite-6.0-646CFF">
+  <img alt="Firebase Auth" src="https://img.shields.io/badge/Firebase-Auth-FFCA28">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-pytest-0A9EDC">
 </p>
 
-<p align="center">
-  Connect and switch between leading AI models from one simple interface.
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Flask-3.0-red">
-  <img src="https://img.shields.io/badge/React-18-blue">
-  <img src="https://img.shields.io/badge/Firebase-Auth-orange">
-  <img src="https://img.shields.io/badge/PostgreSQL-Supported-blue">
-</p>
+---
 
 ## Overview
 
-Nexa AI is a self-hosted conversational AI workspace that allows users to connect and manage multiple AI providers through a unified interface.
+Nexa AI Workspace is an AI chatbot web project built around a simple idea: keep the chat experience clean while letting users bring their own model providers and credentials.
 
-Supported providers include:
+The backend is a Flask application that handles authentication, sessions, provider connections, conversations, uploads, document retrieval, memory, storage quotas, and rate limiting. The frontend includes a React/Vite landing experience plus a server-rendered chat workspace with modular JavaScript for streaming, markdown, citations, uploads, provider settings, and conversation management.
 
-* Google Gemini
-* Anthropic Claude
-* OpenAI
-* OpenRouter
-* DeepSeek
-* Groq
-* Ollama
-* LM Studio
-* Custom OpenAI-compatible APIs
+This repository currently contains:
+
+| Area | What is implemented |
+| --- | --- |
+| Chat app | Flask-rendered authenticated workspace with conversation history and streaming support |
+| Landing app | React/Vite marketing/landing surface served from `chatbot-dashboard/dist` when built |
+| Providers | Saved provider connections, encrypted API keys, model detection, activation, and custom base URLs |
+| Documents | Upload, chunk, embed, search, cite, and delete PDF/DOCX/TXT/Markdown documents |
+| Memory | Personalization profile, manual memories, explicit-memory capture, and automatic memory hooks |
+| Security | Firebase auth sessions, CSRF checks, origin validation, rate limiting, upload limits, and provider URL validation |
 
 ---
 
 ## Key Features
 
-### AI Providers
+### Multi-Provider AI Routing
 
-* Bring Your Own API Key (BYOK)
-* Multi-provider model routing
-* Automatic model detection
-* Custom base URL support
+- Bring-your-own-key provider setup with encrypted server-side credential storage.
+- Supported provider definitions for OpenAI, OpenRouter, Anthropic Claude, Google Gemini, Kimi/Moonshot, Groq, DeepSeek, Together AI, Mistral, Cohere, Fireworks AI, Perplexity, xAI Grok, Ollama, LM Studio, and OpenAI-compatible/custom endpoints.
+- Model detection and connection testing when the provider supports it.
+- Active provider/model switching from the chat workspace.
+- Environment-based fallback configuration for Gemini, OpenAI, and OpenRouter.
 
-### Chat Experience
+### Chat Workspace
 
-* Real-time SSE streaming
-* Conversation history
-* Chat renaming
-* Theme switching
-* JSON import/export
+- Authenticated chat page with saved conversations and message history.
+- Standard JSON chat endpoint and streaming NDJSON endpoint.
+- Conversation create, rename, delete, clear, import, and feedback routes.
+- Markdown and KaTeX rendering on the frontend.
+- Response citations when document retrieval contributes context.
+- Theme preference, auto-scroll preference, mobile sidebar behavior, and long-conversation "load earlier" rendering.
 
-### File Processing
+### Uploads, Documents, and RAG
 
-* PDF extraction
-* DOCX extraction
-* TXT / Markdown support
-* Image uploads for multimodal models
+- Upload support for `pdf`, `docx`, `txt`, `md`, and common image formats.
+- Text extraction for PDF and DOCX files.
+- Document storage with chunking, embeddings, retrieval, and citation metadata.
+- Local hash embeddings by default, with OpenAI-compatible embeddings available through environment configuration.
+- Document search, source file serving, storage usage reporting, and document deletion.
 
-### Security
+### Memory and Personalization
 
-* Firebase Authentication
-* Google OAuth Login
-* CSRF protection
-* Origin validation
-* Encrypted API key storage
+- User personalization text stored per account.
+- Manual memory CRUD endpoints.
+- Explicit memory capture from chat messages.
+- Automatic memory hooks with configurable memory limits.
+- Conversation summaries used as part of context building.
+
+### Security and Operational Guardrails
+
+- Firebase ID token verification with server-side session creation.
+- Configurable public sign-in, verified-email requirement, allowed email domains, and allowed email addresses.
+- CSRF protection for state-changing routes.
+- Same-origin validation for unsafe requests.
+- Flask-Limiter rate limits with Redis required in production.
+- Upload size limits, image size limits, per-user storage quotas, conversation quotas, memory quotas, and provider connection quotas.
+- Custom provider base URL validation with protections against unsafe metadata/link-local targets.
+- PostgreSQL required for production mode; SQLite supported for local development.
 
 ---
 
 ## Screenshots
 
-### Landing Page
+The repository already includes a few visual assets that can be used in the README:
 
-```text
-Add screenshot here:
-docs/screenshots/landing.png
-```
+| Preview | Asset |
+| --- | --- |
+| Landing preview | `chatbot-dashboard/public/assets/Landing.png` |
+| Normal state | `chatbot-dashboard/public/assets/Normal.png` |
+| Hover/detail state | `chatbot-dashboard/public/assets/Hover.png` |
 
-### Workspace
+Recommended GitHub screenshots to add later:
 
-```text
-Add screenshot here:
-docs/screenshots/workspace.png
-```
-
-### Provider Settings
-
-```text
-Add screenshot here:
-docs/screenshots/settings.png
-```
+- `docs/screenshots/landing.png`
+- `docs/screenshots/chat-workspace.png`
+- `docs/screenshots/provider-settings.png`
+- `docs/screenshots/documents-and-citations.png`
 
 ---
 
 ## Tech Stack
 
-### Frontend
-
-| Technology        | Purpose        |
-| ----------------- | -------------- |
-| React 18          | User Interface |
-| Vite              | Build Tool     |
-| Tailwind CSS      | Styling        |
-| Framer Motion     | Animations     |
-| React Three Fiber | 3D Graphics    |
-
 ### Backend
 
-| Technology         | Purpose           |
-| ------------------ | ----------------- |
-| Flask              | API Server        |
-| SQLAlchemy         | ORM               |
-| Gunicorn           | Production Server |
-| Firebase Admin SDK | Authentication    |
-| Cryptography       | Key Encryption    |
+| Technology | Purpose |
+| --- | --- |
+| Flask 3 | Web app, API routes, server-rendered chat pages |
+| SQLAlchemy 2 | ORM models and persistence |
+| Alembic | Database migrations |
+| Firebase Admin SDK | Firebase token verification |
+| Flask-Limiter | Per-user/IP rate limiting |
+| Redis | Production rate-limit backend |
+| Cryptography/Fernet | Provider API key encryption |
+| pypdf / python-docx | Document text extraction |
+| Gunicorn | Production WSGI server |
+| pytest | Backend and frontend-behavior tests |
 
-### Database
+### Frontend
 
-| Technology | Purpose             |
-| ---------- | ------------------- |
-| SQLite     | Local Development   |
-| PostgreSQL | Production Database |
+| Technology | Purpose |
+| --- | --- |
+| React 18 | Landing/dashboard UI |
+| Vite 6 | Frontend build tooling |
+| Tailwind CSS | Landing app styling |
+| Framer Motion / Motion | Animation primitives |
+| Three.js / React Three Fiber | Landing visual effects |
+| Firebase Web SDK | Browser authentication flow |
+| Vanilla JS modules | Chat workspace behavior |
+| KaTeX | Math rendering in chat |
+
+### Data and Storage
+
+| Storage | Usage |
+| --- | --- |
+| SQLite | Local development database |
+| PostgreSQL | Required database for production mode |
+| Local filesystem | Uploaded document/image source storage |
+| Redis | Production rate limiting |
 
 ---
 
 ## Architecture
 
 ```text
-┌───────────────┐
-│     User      │
-└───────┬───────┘
-        │
-        ▼
-┌───────────────────┐
-│ React Frontend    │
-│ Landing + Chat UI │
-└───────┬───────────┘
-        │
-        ▼
-┌───────────────────┐
-│ Flask Backend     │
-│ REST API + SSE    │
-└───────┬───────────┘
-        │
-        ▼
-┌───────────────────┐
-│ Authentication    │
-│ Firebase OAuth    │
-└───────┬───────────┘
-        │
-        ▼
-┌───────────────────┐
-│ Provider Router   │
-└───────┬───────────┘
-        │
-        ▼
-┌─────────────────────────────────────┐
-│ Gemini │ Claude │ OpenAI │ Ollama  │
-└─────────────────────────────────────┘
+User
+  |
+  v
+React/Vite landing app
+  |
+  v
+Flask app
+  |-- Auth routes: Firebase session, login, register, logout
+  |-- Chat routes: JSON chat, streaming chat, RAG context, memory hooks
+  |-- Provider routes: model detection, testing, encrypted saved connections
+  |-- Conversation routes: history, import, rename, delete, feedback
+  |-- Document routes: upload, chunk, embed, search, cite, delete
+  |-- Memory routes: personalization and user memory CRUD
+  |-- Health routes: /health and /ready
+  |
+  v
+SQLAlchemy models
+  |-- users
+  |-- conversations / messages / attachments
+  |-- provider_connections
+  |-- user_personalizations / user_memories
+  |-- documents / document_chunks
+  |-- audit_logs
+  |
+  v
+AI provider adapters
+  |-- Anthropic
+  |-- Cohere
+  |-- Gemini
+  |-- OpenAI-compatible providers
 ```
 
 ---
@@ -166,230 +186,282 @@ docs/screenshots/settings.png
 ## Project Structure
 
 ```text
-Nexa-AI-Workspace
-│
-├── chatbot-dashboard
-│   ├── src
-│   ├── public
-│   ├── components
-│   └── package.json
-│
-├── chatbot-simple
-│   ├── services
-│   ├── static
-│   ├── templates
-│   ├── tests
-│   └── app.py
-│
-└── README.md
+.
+|-- chatbot-dashboard/          # React/Vite landing app
+|   |-- public/assets/          # Existing preview/logo assets
+|   |-- src/components/         # Landing sections, layout, and UI components
+|   |-- src/data/landingData.js # Landing content and provider-facing copy
+|   |-- package.json
+|   `-- vite.config.js
+|
+|-- chatbot-simple/             # Flask chatbot application
+|   |-- app.py                  # App factory, blueprint registration, runtime entry
+|   |-- routes/                 # Auth, chat, provider, document, memory, health routes
+|   |-- services/               # Config, auth, persistence, security, AI, RAG, uploads
+|   |-- static/                 # Chat CSS/JS, Firebase auth JS, KaTeX vendor assets
+|   |-- templates/              # Landing fallback, login/register, chat workspace
+|   |-- migrations/             # Alembic migration scripts
+|   |-- tests/                  # pytest test suite
+|   |-- .env.example            # Environment variable template
+|   `-- requirements.txt
+|
+|-- image/                      # Additional copied visual assets
+|-- CHANGELOG.md
+|-- storage-quota-roadmap.md
+`-- README.md
 ```
 
 ---
 
-## Installation
+## Setup
 
-### Clone Repository
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/Nexa-AI-Workspace.git
-
-cd Nexa-AI-Workspace
+git clone https://github.com/your-username/your-repo-name.git
+cd your-repo-name
 ```
 
-### Backend Setup
+### 2. Configure the backend
 
 ```bash
 cd chatbot-simple
-
 python -m venv venv
 
-# Windows
-venv\Scripts\activate
+# Windows PowerShell
+.\venv\Scripts\Activate.ps1
 
-# Linux / macOS
+# macOS/Linux
 source venv/bin/activate
 
 pip install -r requirements.txt
+copy .env.example .env
 ```
 
-### Frontend Setup
+On macOS/Linux, use `cp .env.example .env` instead of `copy`.
+
+### 3. Configure the frontend landing app
 
 ```bash
-cd chatbot-dashboard
-
+cd ../chatbot-dashboard
 npm install
-
 npm run build
 ```
+
+When `chatbot-dashboard/dist/index.html` exists, the Flask landing route serves the built React app. Without a build, Flask falls back to `chatbot-simple/templates/landing.html`.
 
 ---
 
 ## Environment Variables
 
-Create a `.env` file in `chatbot-simple/`. For production, keep secrets in your host's secret manager and do not commit them.
+Start from [`chatbot-simple/.env.example`](chatbot-simple/.env.example). The most important variables are:
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `APP_ENV` | Yes | `development` or `production` |
+| `SECRET_KEY` | Production | Flask session secret |
+| `DATABASE_URL` | Production | SQLite locally, PostgreSQL in production |
+| `PROVIDER_CREDENTIAL_KEY` | Production | Dedicated Fernet secret for saved provider API keys |
+| `VITE_FIREBASE_*` | Production | Firebase web configuration for browser auth |
+| `FIREBASE_CREDENTIALS_JSON` / `FIREBASE_CREDENTIALS` / `GOOGLE_APPLICATION_CREDENTIALS` | Production | Firebase Admin credentials |
+| `AUTH_ALLOW_PUBLIC_SIGNIN` | Recommended | Whether arbitrary Firebase users can sign in |
+| `AUTH_ALLOWED_EMAIL_DOMAINS` / `AUTH_ALLOWED_EMAILS` | Production when public sign-in is false | Access allowlist |
+| `RATE_LIMIT_BACKEND` | Yes | `memory` locally, `redis` in production |
+| `REDIS_URL` | Production | Redis URL for rate limiting |
+| `UPLOAD_STORAGE_DIR` | Optional | Local upload/document storage path |
+| `MAX_UPLOAD_MB` | Optional | Per-file upload limit |
+| `MAX_UPLOAD_STORAGE_MB_PER_USER` | Optional | Per-user upload storage quota |
+| `RAG_ENABLED` | Optional | Enable/disable document retrieval |
+| `EMBEDDING_PROVIDER` | Optional | `local` by default, `openai`/OpenAI-compatible supported |
+| `EMBEDDING_API_KEY` | Required for remote embeddings | Embedding provider credential |
+| `AI_REQUEST_TIMEOUT` | Optional | Provider request timeout |
+| `AI_MAX_OUTPUT_TOKENS` | Optional | Max output token setting passed to providers |
+
+Provider fallback variables are also supported for environment-configured Gemini, OpenAI, and OpenRouter connections:
 
 ```env
-APP_ENV=development
-FLASK_DEBUG=false
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
 
-SECRET_KEY=change-me
-DATABASE_URL=sqlite:///instance/chatbot.sqlite3
+OPENAI_API_KEY=
+OPENAI_MODEL=
+OPENAI_BASE_URL=https://api.openai.com/v1
 
-# Dedicated encryption secret for saved provider API keys.
-# Changing it later requires a key-rotation/re-encryption migration.
-PROVIDER_CREDENTIAL_KEY=change-me-provider-credential-key
-
-SESSION_LIFETIME_MINUTES=1440
-UPLOAD_STORAGE_DIR=instance/uploads
-MAX_UPLOAD_MB=10
-MAX_DOCUMENTS_PER_USER=0
-MAX_UPLOAD_STORAGE_MB_PER_USER=75
-MAX_CONVERSATIONS_PER_USER=100
-MAX_MEMORIES_PER_USER=30
-MAX_PROVIDER_CONNECTIONS_PER_USER=5
-
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
-FIREBASE_PROJECT_ID=
-FIREBASE_CREDENTIALS_JSON=
-
-AUTH_ALLOW_PUBLIC_SIGNIN=false
-AUTH_REQUIRE_EMAIL_VERIFIED=true
-AUTH_ALLOWED_EMAIL_DOMAINS=
-AUTH_ALLOWED_EMAILS=
-
-# Local/dev only. Use RATE_LIMIT_BACKEND=redis in production.
-RATE_LIMIT_BACKEND=memory
-REDIS_URL=
-RATE_LIMIT_FAIL_OPEN=false
-RATE_LIMIT_AUTH=10 per minute
-RATE_LIMIT_API=120 per minute
-RATE_LIMIT_CHAT=30 per minute
-RATE_LIMIT_STREAM=30 per minute
-RATE_LIMIT_UPLOAD=10 per hour
-RATE_LIMIT_PROVIDER_TEST=20 per hour
-RATE_LIMIT_MEMORY=60 per minute
-RATE_LIMIT_DOCUMENTS=60 per minute
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 ```
 
-Production startup requires `APP_ENV=production`, a non-default `SECRET_KEY`, PostgreSQL `DATABASE_URL`, a dedicated `PROVIDER_CREDENTIAL_KEY`, Firebase web config, Firebase Admin credentials, `RATE_LIMIT_BACKEND=redis`, and `REDIS_URL`. If `AUTH_ALLOW_PUBLIC_SIGNIN=false`, configure `AUTH_ALLOWED_EMAIL_DOMAINS` or `AUTH_ALLOWED_EMAILS` so the app does not accept arbitrary Firebase users.
-
-Redis-backed rate limiting is required in production because in-memory rate limits reset on app restart and do not coordinate across multiple Gunicorn workers or app instances. `RATE_LIMIT_FAIL_OPEN=false` is the default, so startup fails if Redis cannot be reached; set it to `true` only if you intentionally prefer allowing traffic while Redis is unavailable.
-
-Local upload storage uses generated storage keys on disk while preserving original filenames only as display metadata. Free users are limited to 75 MB of local storage, 10 MB per uploaded file, 100 conversations, 30 active memories, and 5 provider connections by default. Nexa warns at 80% storage use and blocks only new uploads at 100%; chat and existing files continue to work. `MAX_DOCUMENTS_PER_USER=0` disables document-count limiting so storage quota is the primary control. Local disk storage is still intended for portfolio/demo deployments, not durable multi-instance production storage.
+Production mode validates configuration at startup. In production, use PostgreSQL, Redis-backed rate limiting, non-default secrets, Firebase Admin credentials, and an explicit auth access policy unless public sign-in is intentional.
 
 ---
 
-## Deployment
+## Run Locally
 
-### Render (Backend)
-
-```bash
-Build Command:
-pip install -r requirements.txt
-
-Start Command:
-gunicorn app:app
-```
-
-Add a managed Redis instance and set:
-
-```env
-APP_ENV=production
-RATE_LIMIT_BACKEND=redis
-REDIS_URL=redis://...
-RATE_LIMIT_FAIL_OPEN=false
-```
-
-On Railway, add the Redis plugin and use its provided `REDIS_URL`. On a VPS, install Redis or point to a managed Redis provider, bind it privately where possible, require authentication, and use the authenticated URL in `REDIS_URL`.
-
-### Vercel (Frontend)
+### Backend and chat app
 
 ```bash
+cd chatbot-simple
+.\venv\Scripts\Activate.ps1
+python app.py
+```
+
+The Flask app runs on:
+
+```text
+http://127.0.0.1:5000
+```
+
+Useful routes:
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Landing page |
+| `/login` | Firebase login page |
+| `/register` | Firebase register page |
+| `/chat` | Authenticated chat workspace |
+| `/health` | Basic health check |
+| `/ready` | Database readiness check |
+
+### Frontend landing app in development mode
+
+```bash
+cd chatbot-dashboard
+npm run dev
+```
+
+Vite serves the landing app separately for frontend development. Build it with `npm run build` when you want Flask to serve the compiled version.
+
+### Database migrations
+
+For local SQLite development, the app creates missing tables on startup and also includes migration scripts. To run migrations explicitly:
+
+```bash
+cd chatbot-simple
+alembic upgrade head
+```
+
+---
+
+## Testing
+
+Run the Python test suite from the Flask app directory:
+
+```bash
+cd chatbot-simple
+
+# Windows PowerShell
+$env:PYTHONPATH='.'; pytest
+
+# macOS/Linux
+PYTHONPATH=. pytest
+```
+
+The current tests cover areas including:
+
+- Firebase Admin auth behavior
+- Provider routing and provider configuration
+- Security controls
+- User isolation
+- Uploads and streaming behavior
+- Conversation summaries and context building
+- Memory and personalization behavior
+- RAG document handling and citations
+- Storage quota MVP behavior
+- Frontend markdown/citation rendering behavior
+
+For the React landing app:
+
+```bash
+cd chatbot-dashboard
 npm run build
 ```
 
-Deploy only the frontend and point API requests to the Render backend.
+There is no dedicated frontend test script in `chatbot-dashboard/package.json` at the moment.
 
 ---
 
-## Security
+## Deployment Notes
 
-* Fernet encrypted API key storage
-* Firebase token verification
-* Configurable Firebase email/domain allowlist
-* Optional verified-email requirement
-* CSRF protection
-* Origin validation
-* Session-based authentication
-* Redis-backed rate limiting for production
-* SSRF mitigation for custom providers
+### Backend
+
+The backend can run behind a WSGI server such as Gunicorn:
+
+```bash
+cd chatbot-simple
+gunicorn app:app
+```
+
+For hosted production deployments, configure:
+
+- `APP_ENV=production`
+- PostgreSQL `DATABASE_URL`
+- Redis `REDIS_URL`
+- `RATE_LIMIT_BACKEND=redis`
+- Non-default `SECRET_KEY`
+- Dedicated `PROVIDER_CREDENTIAL_KEY`
+- Firebase web config and Firebase Admin credentials
+- `AUTH_ALLOWED_EMAIL_DOMAINS`, `AUTH_ALLOWED_EMAILS`, or intentional `AUTH_ALLOW_PUBLIC_SIGNIN=true`
+
+The app exposes `/health` and `/ready` for platform checks.
+
+### Frontend
+
+Build the landing app before deployment:
+
+```bash
+cd chatbot-dashboard
+npm install
+npm run build
+```
+
+The Flask app serves the built landing bundle from `chatbot-dashboard/dist`. If deploying the landing app separately, point its auth/workspace actions back to the Flask backend.
+
+### Storage
+
+Uploaded files are currently stored on local disk under `UPLOAD_STORAGE_DIR`. That is straightforward for local demos and single-instance deployments, but a persistent shared object store would be a better fit for multi-instance hosting.
+
+---
+
+## Security and Privacy Notes
+
+- User provider API keys are encrypted before being stored and masked when returned to the browser.
+- The browser sends Firebase ID tokens to the backend, where the server creates its own session.
+- Access can be restricted by verified email, allowed domains, or allowed individual emails.
+- CSRF tokens are required on state-changing routes when `CSRF_ENABLED=true`.
+- Unsafe requests are checked against the current request origin.
+- Production rate limiting requires Redis so limits survive restarts and coordinate across workers.
+- Uploaded document source files are stored locally and can be retrieved only through authenticated user-scoped routes.
+- RAG embeddings are local hash embeddings by default. If remote embeddings are enabled, document text is sent to the configured embedding provider.
+- Local uploaded-file storage is not a substitute for durable object storage in distributed production deployments.
 
 ---
 
 ## Current Limitations
 
-* No Alembic migration support
-* Local upload storage
-* Local/dev memory rate limiting is not production-safe
-* Email/password authentication not completed
+- The repository does not currently include a `LICENSE` file.
+- The landing app has a build script but no dedicated frontend test script.
+- Uploaded files use local filesystem storage.
+- The storage roadmap mentions trash, archive, and richer storage breakdown ideas that are not fully implemented.
+- Multi-user team workspaces, shared provider management, billing, and organization-level controls are not present.
 
 ---
 
 ## Roadmap
 
-### Short Term
-
-* Alembic database migrations
-* Native email/password login
-* Improved onboarding flow
-
-### Mid Term
-
-* Redis-based sessions
-* Distributed rate limiting
-* Cloud file storage integration
-
-### Long Term
-
-* Team workspaces
-* Shared provider management
-* Organization billing
-* Enterprise deployment support
+- Add committed GitHub screenshots for the landing page, chat workspace, provider settings, and document citation flow.
+- Add a formal license file.
+- Add frontend tests for the React landing app and critical chat UI modules.
+- Add cloud/object storage support for uploaded documents and images.
+- Add richer document management: trash, restore, archive, sorting, and storage breakdown views.
+- Improve onboarding for first-time Firebase and provider setup.
+- Add team or organization workspace concepts if the project grows in that direction.
+- Add deployment examples for specific platforms such as Render, Railway, Fly.io, or VPS setups.
 
 ---
 
-## Contributing
+## Credits
 
-1. Fork the repository
-2. Create a feature branch
+Built by **Vu Duc Quang** as an AI chatbot workspace project.
 
-```bash
-git checkout -b feature/amazing-feature
-```
-
-3. Commit your changes
-
-```bash
-git commit -m "Add amazing feature"
-```
-
-4. Push to your branch
-
-```bash
-git push origin feature/amazing-feature
-```
-
-5. Open a Pull Request
-
----
-
-## License
-
-Distributed under the MIT License.
-
-See `LICENSE` for more information.
+The project uses open-source tools across the Flask, React, Firebase, SQLAlchemy, Alembic, KaTeX, and Vite ecosystems.

@@ -4,7 +4,8 @@ from dataclasses import dataclass
 
 FALLBACK_PROVIDER = "gemini"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-DEFAULT_TIMEOUT_SECONDS = 60
+DEFAULT_TIMEOUT_SECONDS = 180
+DEFAULT_MAX_OUTPUT_TOKENS = 8192
 PLACEHOLDER_VALUES = {
     "your_api_key_here",
     "your_gemini_api_key_here",
@@ -28,6 +29,7 @@ class ProviderConfig:
     supports_images_override: bool | None = None
     requires_api_key: bool = True
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
+    max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS
 
     @property
     def api_key(self):
@@ -91,6 +93,7 @@ def models_from_env(list_env, default_model):
 
 def get_provider_configs():
     timeout_seconds = env_int("AI_REQUEST_TIMEOUT", DEFAULT_TIMEOUT_SECONDS)
+    max_output_tokens = env_int("AI_MAX_OUTPUT_TOKENS", DEFAULT_MAX_OUTPUT_TOKENS)
     gemini_model = env_value("GEMINI_MODEL", DEFAULT_GEMINI_MODEL) or DEFAULT_GEMINI_MODEL
     openai_model = env_value("OPENAI_MODEL")
     openrouter_model = env_value("OPENROUTER_MODEL")
@@ -106,6 +109,7 @@ def get_provider_configs():
             models=models_from_env("GEMINI_MODELS", gemini_model),
             supports_images_override=env_bool_optional("GEMINI_SUPPORTS_IMAGES"),
             timeout_seconds=timeout_seconds,
+            max_output_tokens=max_output_tokens,
         ),
         "openai": ProviderConfig(
             provider_id="openai",
@@ -119,6 +123,7 @@ def get_provider_configs():
             image_models=env_csv("OPENAI_IMAGE_MODELS"),
             supports_images_override=env_bool_optional("OPENAI_SUPPORTS_IMAGES"),
             timeout_seconds=timeout_seconds,
+            max_output_tokens=max_output_tokens,
         ),
         "openrouter": ProviderConfig(
             provider_id="openrouter",
@@ -132,5 +137,6 @@ def get_provider_configs():
             image_models=env_csv("OPENROUTER_IMAGE_MODELS"),
             supports_images_override=env_bool_optional("OPENROUTER_SUPPORTS_IMAGES"),
             timeout_seconds=timeout_seconds,
+            max_output_tokens=max_output_tokens,
         ),
     }

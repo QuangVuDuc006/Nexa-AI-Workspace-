@@ -161,7 +161,12 @@ def selected_chat_router(deps: RouteDeps, db, user_id):
     if not connection:
         return deps.ai_router, None, None
 
-    config = runtime_config(connection, deps.credential_cipher, deps.settings.ai_request_timeout)
+    config = runtime_config(
+        connection,
+        deps.credential_cipher,
+        deps.settings.ai_request_timeout,
+        deps.settings.ai_max_output_tokens,
+    )
     return provider_router_class(config), connection.provider_type, connection.selected_model
 
 

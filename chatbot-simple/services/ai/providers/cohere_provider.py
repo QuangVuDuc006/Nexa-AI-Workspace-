@@ -57,6 +57,7 @@ class CohereProvider(AIProvider):
             {
                 "model": model,
                 "messages": [{"role": "user", "content": build_user_content(message, attachments)}],
+                "max_tokens": self.config.max_output_tokens,
             },
             model,
         )

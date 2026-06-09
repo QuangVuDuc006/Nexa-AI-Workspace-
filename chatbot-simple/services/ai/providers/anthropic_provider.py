@@ -63,7 +63,7 @@ class AnthropicProvider(AIProvider):
 
         return {
             "model": model,
-            "max_tokens": 4096,
+            "max_tokens": self.config.max_output_tokens,
             "stream": stream,
             "messages": [{"role": "user", "content": content}],
         }

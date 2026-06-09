@@ -84,7 +84,12 @@ class GeminiProvider(AIProvider):
                 },
             })
 
-        return {"contents": [{"role": "user", "parts": parts}]}
+        return {
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": {
+                "maxOutputTokens": self.config.max_output_tokens,
+            },
+        }
 
     def extract_text(self, payload):
         try:

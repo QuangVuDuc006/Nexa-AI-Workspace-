@@ -178,7 +178,7 @@ def save_connection(
     return connection
 
 
-def runtime_config(connection, cipher, timeout_seconds=60):
+def runtime_config(connection, cipher, timeout_seconds=180, max_output_tokens=8192):
     definition = get_provider_definition(connection.provider_type)
     if not definition:
         raise ValueError("Saved provider is no longer supported.")
@@ -206,4 +206,5 @@ def runtime_config(connection, cipher, timeout_seconds=60):
         image_models=image_models,
         requires_api_key=definition.requires_api_key,
         timeout_seconds=timeout_seconds,
+        max_output_tokens=max_output_tokens,
     )

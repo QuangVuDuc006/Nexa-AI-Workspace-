@@ -101,7 +101,7 @@ class OpenAICompatibleProvider(AIProvider):
                     },
                 })
 
-        return {
+        body = {
             "model": model,
             "stream": stream,
             "messages": [
@@ -111,6 +111,17 @@ class OpenAICompatibleProvider(AIProvider):
                 },
             ],
         }
+        if self.config.max_output_tokens:
+            token_limit_key = "max_completion_tokens" if self.uses_completion_token_limit(model) else "max_tokens"
+            body[token_limit_key] = self.config.max_output_tokens
+        return body
+
+    def uses_completion_token_limit(self, model):
+        if self.provider_id != "openai":
+            return False
+
+        normalized_model = str(model or "").lower()
+        return normalized_model.startswith(("o1", "o3", "o4", "gpt-5"))
 
     def generate_reply(self, message, model, attachments):
         body = self.build_chat_body(message, model, attachments, stream=False)
