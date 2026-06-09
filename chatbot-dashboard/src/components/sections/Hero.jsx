@@ -139,9 +139,9 @@ export function Hero() {
           variants={heroItem}
           className="mt-8 flex max-w-4xl flex-col items-center text-balance text-[3.25rem] font-semibold leading-[0.98] tracking-[-0.07em] text-white md:text-[4.9rem] lg:text-[5.35rem]"
         >
-          <span>One AI Workspace to</span>
+          <span>One AI Workspace for</span>
           <RotatingText
-            texts={["Chat", "Switch", "Explore"]}
+            texts={["Thinking", "Coding", "Research", "Learning", "Creating"]}
             mainClassName="rotating-hero-word"
             staggerFrom="last"
             initial={{ y: "100%", opacity: 0 }}
@@ -156,7 +156,7 @@ export function Hero() {
           />
         </motion.h1>
         <motion.p variants={heroItem} className="mt-6 max-w-2xl text-base leading-7 text-mist-200 md:text-lg">
-          Chat securely, upload documents, refine responses, and keep every useful conversation organized in one place.
+          Connect Gemini, Claude, OpenAI, DeepSeek, Groq, OpenRouter, and Ollama from a single AI workspace.
         </motion.p>
         <motion.div variants={heroItem} className="relative z-20 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <WorkspaceButton>Open Workspace</WorkspaceButton>
@@ -164,6 +164,9 @@ export function Hero() {
             Explore features
           </Button>
         </motion.div>
+        <motion.p variants={heroItem} className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-mist-300">
+          7 AI Providers &bull; Long-Term Memory &bull; Built-in RAG
+        </motion.p>
         <HeroMockup />
       </motion.div>
 

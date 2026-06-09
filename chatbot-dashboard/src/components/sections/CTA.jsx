@@ -18,11 +18,13 @@ export function CTA() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(141,77,232,0.32),transparent_38%),radial-gradient(circle_at_100%_100%,rgba(111,52,197,0.34),transparent_40%)]" />
           <div className="relative z-10">
             <h2 className="text-balance text-4xl font-semibold leading-[1.03] tracking-[-0.06em] text-white md:text-5xl">
-              Paste an API key. Pick a model. Start chatting.
+              Your AI. Your Models. Your Workspace.
             </h2>
-            <p className="mt-5 text-sm font-medium text-mist-200">Use one clean chatbot for the providers and models you already rely on.</p>
+            <p className="mt-5 text-sm font-medium leading-6 text-mist-200">
+              Bring your own keys, connect your favorite models, and build a personalized AI workspace.
+            </p>
             <WorkspaceButton className="mt-6" icon>
-              Start chatting
+              Launch Nexa AI
             </WorkspaceButton>
           </div>
         </motion.div>

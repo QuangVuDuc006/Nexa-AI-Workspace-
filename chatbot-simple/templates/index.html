@@ -27,7 +27,7 @@
             document.documentElement.dataset.theme = theme;
         }());
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=output-column-width-1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=math-error-fallback-1">
 </head>
 <body
     data-user-id="{{ current_user.id if current_user else 'guest' }}"
@@ -77,6 +77,10 @@
                 <button class="sidebar-nav-item" type="button" data-action="open-file-upload">
                     <span class="material-symbols-outlined">upload_file</span>
                     <span class="sidebar-item-label">Files / Uploads</span>
+                </button>
+                <button class="sidebar-nav-item" type="button" data-action="open-storage-settings">
+                    <span class="material-symbols-outlined">data_usage</span>
+                    <span class="sidebar-item-label">Usage</span>
                 </button>
                 <button class="sidebar-nav-item" type="button" data-action="open-provider-settings">
                     <span class="material-symbols-outlined">hub</span>
@@ -277,6 +281,58 @@
         </div>
     </section>
 
+    <section class="dialog-layer usage-dialog" aria-hidden="true">
+        <div class="dialog-panel usage-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="usageDialogTitle">
+            <header class="dialog-header">
+                <div>
+                    <span class="meta-label">Workspace</span>
+                    <h2 id="usageDialogTitle">Usage</h2>
+                </div>
+                <button class="icon-button usage-close-button" type="button" aria-label="Close usage">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </header>
+
+            <section class="settings-section storage-settings-section" data-settings-section="storage" aria-labelledby="storageSettingsTitle">
+                <div class="settings-section-heading">
+                    <div>
+                        <h3 id="storageSettingsTitle">Storage Usage</h3>
+                        <p class="settings-help">Free plan storage usage, uploaded documents, and local cleanup controls.</p>
+                    </div>
+                    <span class="storage-plan-badge">Free</span>
+                </div>
+                <div class="storage-warning" hidden></div>
+                <div class="storage-meter" aria-label="Storage usage">
+                    <div class="storage-meter-header">
+                        <strong class="storage-usage-label">0 MB / 75 MB</strong>
+                        <span class="storage-percent-label">0%</span>
+                    </div>
+                    <div class="storage-progress" aria-hidden="true">
+                        <span class="storage-progress-bar"></span>
+                    </div>
+                </div>
+                <div class="storage-breakdown" aria-label="Storage breakdown"></div>
+                <div class="document-controls">
+                    <label class="form-field document-search-field">
+                        <span>Search files</span>
+                        <input class="document-search-input" type="search" placeholder="Search uploaded documents">
+                    </label>
+                    <label class="form-field document-sort-field">
+                        <span>Sort by</span>
+                        <select class="document-sort-select">
+                            <option value="date-desc">Newest</option>
+                            <option value="date-asc">Oldest</option>
+                            <option value="size-desc">Largest</option>
+                            <option value="size-asc">Smallest</option>
+                            <option value="name-asc">Name A-Z</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="document-list"></div>
+            </section>
+        </div>
+    </section>
+
     <section class="dialog-layer personalization-dialog" aria-hidden="true">
         <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="personalizationDialogTitle">
             <header class="dialog-header">
@@ -387,7 +443,7 @@
 
     <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
 
-    <script type="module" src="{{ url_for('static', filename='js/main.js') }}?v=math-render-guard-1"></script>
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}?v=math-error-fallback-1"></script>
     <script type="module" src="{{ url_for('static', filename='firebase-auth.js') }}"></script>
 </body>
 </html>

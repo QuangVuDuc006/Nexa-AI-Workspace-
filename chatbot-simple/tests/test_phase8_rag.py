@@ -1,11 +1,13 @@
+import logging
 from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
 
 from sqlalchemy import func, select
 
 from conftest import login
 from services.app_config import load_settings
-from services.database import Document, DocumentChunk, db_session
+from services.database import Attachment, Conversation, Document, DocumentChunk, Message, User, db_session, utc_now
 from services.rag.chunking import DEFAULT_CHUNK_OVERLAP_CHARS, DEFAULT_CHUNK_SIZE_CHARS, chunk_text
 
 
@@ -153,7 +155,7 @@ def test_chat_route_includes_retrieved_rag_context(app_module, monkeypatch):
             headers={"X-CSRF-Token": token},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 200, response.get_json()
         assert routed_messages
         assert "Retrieved document context:" in routed_messages[0]
         assert "Retrieved-document answer rules:" in routed_messages[0]
@@ -178,6 +180,542 @@ def test_chat_route_includes_retrieved_rag_context(app_module, monkeypatch):
         assert "Sources:" not in data["reply"]
         assert "documentId" in data["citations"][0]
         assert "embedding" not in data["citations"][0]
+
+
+def test_chat_route_balances_rag_context_across_attached_documents(app_module, monkeypatch, caplog):
+    routed_messages = []
+    caplog.set_level(logging.WARNING)
+
+    class FakeRouter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def prepare_stream(self, provider_id, message, model=None, attachments=None):
+            routed_messages.append(message)
+            return SimpleNamespace(provider="fake", model="fake-model", chunks=iter(["Balanced context."]))
+
+    monkeypatch.setattr(app_module, "ProviderRouter", FakeRouter)
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        token = login(client, uid="rag-attached-balance-user")
+        attachments = []
+
+        for index in range(1, 5):
+            response = client.post(
+                "/api/uploads",
+                data={
+                    "file": (
+                        BytesIO(f"Attached file {index} has unique marker attached-balance-{index}.".encode("utf-8")),
+                        f"attached-{index}.txt",
+                    )
+                },
+                content_type="multipart/form-data",
+                headers={"X-CSRF-Token": token},
+            )
+            assert response.status_code == 200
+            attachments.append(response.get_json()["attachment"])
+
+        response = client.post(
+            "/api/chat",
+            json={
+                "conversationId": "conv-attached-balance",
+                "conversationTitle": "Attached balance",
+                "userMessageId": "msg-attached-balance-user",
+                "assistantMessageId": "msg-attached-balance-ai",
+                "message": "Summarize all attached files.",
+                "attachments": attachments,
+            },
+            headers={"X-CSRF-Token": token},
+        )
+
+        assert response.status_code == 200, response.get_json()
+
+    assert routed_messages
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+
+    for index in range(1, 5):
+        assert f"attached-{index}.txt" in routed_messages[0]
+        assert f"attached-balance-{index}" in routed_messages[0]
+        assert f"RAG ingestion complete" in logged
+        assert f"filename=attached-{index}.txt" in logged
+        assert f"RAG retrieval result" in logged
+
+    assert "mode=document_sweep" in logged
+    assert "### attached-1.txt" in routed_messages[0]
+    assert "separate clearly named section for each file" in routed_messages[0]
+
+    data = response.get_json()
+    cited_filenames = {citation["filename"] for citation in data["citations"]}
+    assert cited_filenames == {f"attached-{index}.txt" for index in range(1, 5)}
+
+
+def test_legacy_upload_indexes_full_text_not_attachment_preview(app_module, monkeypatch):
+    routed_messages = []
+
+    class FakeRouter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def prepare_stream(self, provider_id, message, model=None, attachments=None):
+            routed_messages.append(message)
+            return SimpleNamespace(provider="fake", model="fake-model", chunks=iter(["Full text indexed."]))
+
+    monkeypatch.setenv("MAX_ATTACHMENT_CHARS", "24")
+    monkeypatch.setattr(app_module, "ProviderRouter", FakeRouter)
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        token = login(client, uid="rag-full-upload-user")
+        hidden_marker = "full-index-marker-after-preview"
+        upload = client.post(
+            "/api/uploads",
+            data={
+                "file": (
+                    BytesIO((("Preview only. " * 20) + hidden_marker).encode("utf-8")),
+                    "long-upload.txt",
+                )
+            },
+            content_type="multipart/form-data",
+            headers={"X-CSRF-Token": token},
+        )
+        assert upload.status_code == 200
+        attachment = upload.get_json()["attachment"]
+        assert hidden_marker not in attachment["content"]
+
+        response = client.post(
+            "/api/chat",
+            json={
+                "conversationId": "conv-full-upload",
+                "conversationTitle": "Full upload",
+                "userMessageId": "msg-full-upload-user",
+                "assistantMessageId": "msg-full-upload-ai",
+                "message": "Summarize all uploaded files.",
+                "attachments": [attachment],
+            },
+            headers={"X-CSRF-Token": token},
+        )
+
+        assert response.status_code == 200, response.get_json()
+
+    assert routed_messages
+    assert hidden_marker in routed_messages[0]
+
+
+def test_attached_document_with_no_chunks_adds_diagnostic(app_module, monkeypatch):
+    routed_messages = []
+
+    class FakeRouter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def prepare_stream(self, provider_id, message, model=None, attachments=None):
+            routed_messages.append(message)
+            return SimpleNamespace(provider="fake", model="fake-model", chunks=iter(["Diagnostic noted."]))
+
+    monkeypatch.setattr(app_module, "ProviderRouter", FakeRouter)
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        token = login(client, uid="rag-empty-doc-user")
+        db = db_session()
+        from services.rag.document_service import create_document
+
+        document = create_document(db, "rag-empty-doc-user", "empty.pdf", "application/pdf")
+        db.commit()
+
+        response = client.post(
+            "/api/chat",
+            json={
+                "conversationId": "conv-empty-doc",
+                "conversationTitle": "Empty doc",
+                "userMessageId": "msg-empty-doc-user",
+                "assistantMessageId": "msg-empty-doc-ai",
+                "message": "Summarize all uploaded files.",
+                "attachments": [{
+                    "kind": "text",
+                    "name": "empty.pdf",
+                    "mimeType": "application/pdf",
+                    "documentId": document.id,
+                }],
+            },
+            headers={"X-CSRF-Token": token},
+        )
+
+        assert response.status_code == 200, response.get_json()
+
+    assert routed_messages
+    assert "Document retrieval diagnostics:" in routed_messages[0]
+    assert "empty.pdf: No chunks were saved for this file after extraction/chunking." in routed_messages[0]
+    assert "explicitly name the affected file" in routed_messages[0]
+
+
+def test_multi_file_summary_sweeps_current_conversation_documents(app_module, monkeypatch, caplog):
+    routed_messages = []
+    caplog.set_level(logging.WARNING)
+
+    filenames = [
+        "4-PointProcessing.pdf",
+        "5-SpatialFiltering1.pdf",
+        "6-SpatialFiltering2.pdf",
+        "7-FrequencyFiltering.pdf",
+    ]
+
+    class FakeRouter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def prepare_stream(self, provider_id, message, model=None, attachments=None):
+            routed_messages.append(message)
+            reply = "\n".join(f"### {filename}\nCovered." for filename in filenames)
+            return SimpleNamespace(provider="fake", model="fake-model", chunks=iter([reply]))
+
+    monkeypatch.setattr(app_module, "ProviderRouter", FakeRouter)
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        user_id = "rag-conversation-sweep-user"
+        token = login(client, uid=user_id)
+        db = db_session()
+        db.add(User(id=user_id, email="sweep@example.com", display_name="Sweep"))
+        conversation = Conversation(id="conv-document-sweep", user_id=user_id, title="Document sweep")
+        message = Message(id="msg-document-sweep-seed", conversation_id=conversation.id, role="user", text="Uploaded files.")
+        db.add(conversation)
+        db.add(message)
+
+        from services.rag.document_service import create_document_with_chunks
+
+        for index, filename in enumerate(filenames, start=1):
+            marker = f"sweep-marker-{index}"
+            document, _chunks = create_document_with_chunks(
+                db,
+                user_id,
+                filename,
+                "application/pdf",
+                [
+                    {"content": f"{filename} introduction {marker}. " * 90, "page_number": 1},
+                    {"content": f"{filename} representative middle content {marker}. " * 90, "page_number": 2},
+                    {"content": f"{filename} closing summary {marker}. " * 90, "page_number": 3},
+                ],
+                app.config["APP_SETTINGS"],
+            )
+            db.add(Attachment(
+                id=f"att-document-sweep-{index}",
+                message_id=message.id,
+                kind="text",
+                name=filename,
+                mime_type="application/pdf",
+                document_id=document.id,
+                created_at=utc_now(),
+            ))
+
+        db.commit()
+
+        response = client.post(
+            "/api/chat",
+            json={
+                "conversationId": conversation.id,
+                "conversationTitle": "Document sweep",
+                "userMessageId": "msg-document-sweep-user",
+                "assistantMessageId": "msg-document-sweep-ai",
+                "message": "tóm tắt các nội dung cần biết trong tất cả file",
+                "attachments": [],
+            },
+            headers={"X-CSRF-Token": token},
+        )
+
+        assert response.status_code == 200, response.get_json()
+
+    assert routed_messages
+    context = routed_messages[0]
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+
+    assert len(context) <= 40_000
+    assert "mode=document_sweep" in logged
+    assert "RAG document sweep documents" in logged
+
+    for index, filename in enumerate(filenames, start=1):
+        assert f"### {filename}" in context
+        assert f"sweep-marker-{index}" in context
+        assert f"filename={filename}" in logged
+        assert "selected_chunk_count=" in logged
+        assert "token_estimate=" in logged
+        assert "selected_chars=" in logged
+
+    data = response.get_json()
+    assert all(f"### {filename}" in data["reply"] for filename in filenames)
+    assert {citation["filename"] for citation in data["citations"]} == set(filenames)
+
+
+def test_multi_file_summary_sweeps_user_documents_when_no_attachments(app_module, monkeypatch, caplog):
+    routed_messages = []
+    caplog.set_level(logging.WARNING)
+    filenames = [
+        "4-PointProcessing.pdf",
+        "5-SpatialFiltering1.pdf",
+        "6-SpatialFiltering2.pdf",
+        "7-FrequencyFiltering.pdf",
+    ]
+
+    class FakeRouter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def prepare_stream(self, provider_id, message, model=None, attachments=None):
+            routed_messages.append(message)
+            return SimpleNamespace(provider="fake", model="fake-model", chunks=iter(["All user docs summarized."]))
+
+    monkeypatch.setattr(app_module, "ProviderRouter", FakeRouter)
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        user_id = "rag-user-document-fallback"
+        token = login(client, uid=user_id)
+        db = db_session()
+
+        from services.rag.document_service import create_document_with_chunks
+
+        for index, filename in enumerate(filenames, start=1):
+            create_document_with_chunks(
+                db,
+                user_id,
+                filename,
+                "application/pdf",
+                [{"content": f"{filename} standalone marker fallback-{index}. " * 120, "page_number": 1}],
+                app.config["APP_SETTINGS"],
+                source_bytes=f"{filename} source bytes".encode("utf-8"),
+            )
+
+        db.commit()
+
+        response = client.post(
+            "/api/chat",
+            json={
+                "conversationId": "conv-user-doc-fallback",
+                "conversationTitle": "User docs fallback",
+                "userMessageId": "msg-user-doc-fallback-user",
+                "assistantMessageId": "msg-user-doc-fallback-ai",
+                "message": "tóm tắt tất cả nội dung cần biết trong file",
+                "attachments": [],
+            },
+            headers={"X-CSRF-Token": token},
+        )
+
+        assert response.status_code == 200, response.get_json()
+
+    assert routed_messages
+    context = routed_messages[0]
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+
+    assert "RAG all-user-document fallback" in logged
+    assert "mode=document_sweep" in logged
+
+    for index, filename in enumerate(filenames, start=1):
+        assert f"### {filename}" in context
+        assert f"fallback-{index}" in context
+
+    assert {citation["filename"] for citation in response.get_json()["citations"]} == set(filenames)
+
+
+def test_multi_file_summary_context_budget_preserves_every_document_section(app_module, monkeypatch, caplog):
+    routed_messages = []
+    caplog.set_level(logging.WARNING)
+    filenames = [
+        "7-FrequencyFiltering.pdf",
+        "6-SpatialFiltering2.pdf",
+        "5-SpatialFiltering1.pdf",
+        "4-PointProcessing.pdf",
+    ]
+
+    class FakeRouter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def prepare_stream(self, provider_id, message, model=None, attachments=None):
+            routed_messages.append(message)
+            return SimpleNamespace(provider="fake", model="fake-model", chunks=iter(["Budgeted."]))
+
+    monkeypatch.setattr(app_module, "ProviderRouter", FakeRouter)
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        user_id = "rag-long-sweep-user"
+        token = login(client, uid=user_id)
+        db = db_session()
+        db.add(User(id=user_id, email="long-sweep@example.com", display_name="Long Sweep"))
+        conversation = Conversation(id="conv-long-sweep", user_id=user_id, title="Long sweep")
+        message = Message(id="msg-long-sweep-seed", conversation_id=conversation.id, role="user", text="Uploaded long files.")
+        db.add(conversation)
+        db.add(message)
+
+        from services.rag.document_service import create_document_with_chunks
+
+        for index, filename in enumerate(filenames, start=1):
+            marker = f"long-sweep-marker-{index}"
+            pages = [
+                {
+                    "content": (
+                        f"{filename} page {page} {marker}. "
+                        + ("important lecture content for filtering and image processing. " * 120)
+                    ),
+                    "page_number": page,
+                }
+                for page in range(1, 9)
+            ]
+            document, _chunks = create_document_with_chunks(
+                db,
+                user_id,
+                filename,
+                "application/pdf",
+                pages,
+                app.config["APP_SETTINGS"],
+            )
+            db.add(Attachment(
+                id=f"att-long-sweep-{index}",
+                message_id=message.id,
+                kind="text",
+                name=filename,
+                mime_type="application/pdf",
+                document_id=document.id,
+                created_at=utc_now(),
+            ))
+
+        db.commit()
+
+        response = client.post(
+            "/api/chat",
+            json={
+                "conversationId": conversation.id,
+                "conversationTitle": "Long sweep",
+                "userMessageId": "msg-long-sweep-user",
+                "assistantMessageId": "msg-long-sweep-ai",
+                "message": "tom tat cac noi dung can biet trong tat ca file",
+                "attachments": [],
+            },
+            headers={"X-CSRF-Token": token},
+        )
+
+        assert response.status_code == 200, response.get_json()
+
+    assert routed_messages
+    context = routed_messages[0]
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+
+    assert len(context) <= 40_000
+    assert context.count("### ") == 4
+    assert "mode=document_sweep" in logged
+    assert "char_budget=" in logged
+    assert "selected_chars=" in logged
+
+    for index, filename in enumerate(filenames, start=1):
+        assert f"### {filename}" in context
+        assert f"long-sweep-marker-{index}" in context
+
+
+def test_current_request_attachments_do_not_mix_old_conversation_documents(app_module, monkeypatch, caplog):
+    routed_messages = []
+    caplog.set_level(logging.WARNING)
+    current_filenames = [
+        "5-SpatialFiltering1.pdf",
+        "6-SpatialFiltering2.pdf",
+        "7-FrequencyFiltering.pdf",
+    ]
+
+    class FakeRouter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def prepare_stream(self, provider_id, message, model=None, attachments=None):
+            routed_messages.append(message)
+            return SimpleNamespace(provider="fake", model="fake-model", chunks=iter(["Scoped answer."]))
+
+    monkeypatch.setattr(app_module, "ProviderRouter", FakeRouter)
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        user_id = "rag-request-scope-user"
+        token = login(client, uid=user_id)
+        db = db_session()
+        db.add(User(id=user_id, email="scope@example.com", display_name="Scope"))
+        conversation = Conversation(id="conv-request-scope", user_id=user_id, title="Request scope")
+        old_message = Message(id="msg-request-scope-old", conversation_id=conversation.id, role="user", text="Old upload.")
+        db.add(conversation)
+        db.add(old_message)
+
+        from services.rag.document_service import create_document_with_chunks
+
+        old_document, _chunks = create_document_with_chunks(
+            db,
+            user_id,
+            "Lec4_-_Design_Phase_Pt._1.pdf",
+            "application/pdf",
+            [{"content": "Old unrelated design lecture should not be retrieved.", "page_number": 1}],
+            app.config["APP_SETTINGS"],
+        )
+        db.add(Attachment(
+            id="att-request-scope-old",
+            message_id=old_message.id,
+            kind="text",
+            name=old_document.filename,
+            mime_type="application/pdf",
+            document_id=old_document.id,
+            created_at=utc_now(),
+        ))
+
+        db.commit()
+        attachments = []
+
+        for index, filename in enumerate(current_filenames, start=1):
+            document, _chunks = create_document_with_chunks(
+                db,
+                user_id,
+                filename,
+                "application/pdf",
+                [{"content": f"{filename} current request marker scope-current-{index}.", "page_number": 1}],
+                app.config["APP_SETTINGS"],
+            )
+            attachments.append({
+                "kind": "text",
+                "name": filename,
+                "mimeType": "application/pdf",
+                "documentId": document.id,
+            })
+
+        db.commit()
+
+        response = client.post(
+            "/api/chat",
+            json={
+                "conversationId": conversation.id,
+                "conversationTitle": "Request scope",
+                "userMessageId": "msg-request-scope-user",
+                "assistantMessageId": "msg-request-scope-ai",
+                "message": "tổng hợp các kiến thức quan trọng trong file",
+                "attachments": attachments,
+            },
+            headers={"X-CSRF-Token": token},
+        )
+
+        assert response.status_code == 200, response.get_json()
+
+    assert routed_messages
+    context = routed_messages[0]
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+
+    assert "request_document_count=3 scoped_document_count=3" in logged
+    assert "Lec4_-_Design_Phase_Pt._1.pdf" not in context
+    assert "Lec4_-_Design_Phase_Pt._1.pdf" not in {citation["filename"] for citation in response.get_json()["citations"]}
+
+    for index, filename in enumerate(current_filenames, start=1):
+        assert f"### {filename}" in context
+        assert f"scope-current-{index}" in context
 
 
 def test_chat_sources_include_page_section_and_chunk_without_internal_ids(app_module, monkeypatch):
@@ -294,3 +832,107 @@ def test_document_content_endpoint_returns_uploaded_source_file(client):
 
     assert response.status_code == 200
     assert response.data == b"Open this original source file."
+
+
+def test_upload_size_limit_returns_json_error(app_module, monkeypatch):
+    monkeypatch.setenv("MAX_UPLOAD_MB", "1")
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        token = login(client, uid="upload-size-limit-user")
+        response = client.post(
+            "/api/documents/upload",
+            data={"file": (BytesIO(b"x" * ((1024 * 1024) + 1)), "large.txt")},
+            content_type="multipart/form-data",
+            headers={"X-CSRF-Token": token},
+        )
+
+    assert response.status_code == 413
+    assert response.is_json
+    assert response.get_json()["code"] == "file_too_large"
+    assert "1 MB upload limit" in response.get_json()["error"]
+
+
+def test_document_count_quota_blocks_new_upload(app_module, monkeypatch):
+    monkeypatch.setenv("MAX_DOCUMENTS_PER_USER", "1")
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        token = login(client, uid="document-count-quota-user")
+        first = upload_document(client, token, "First document content.")
+        second = upload_document(client, token, "Second document content.", filename="second.txt")
+
+    assert first.status_code == 200
+    assert second.status_code == 403
+    assert second.get_json()["error"] == "Storage limit reached. Delete old files or upgrade your plan before uploading more files."
+
+
+def test_upload_storage_quota_blocks_new_document(app_module, monkeypatch):
+    monkeypatch.setenv("MAX_UPLOAD_STORAGE_MB_PER_USER", "1")
+    monkeypatch.setenv("RAG_CHUNK_SIZE_CHARS", "2000000")
+    monkeypatch.setenv("RAG_CHUNK_OVERLAP_CHARS", "0")
+    app = app_module.create_app()
+    app.config.update(TESTING=True)
+
+    with app.test_client() as client:
+        token = login(client, uid="storage-quota-user")
+        first = upload_document(client, token, "a" * (850 * 1024))
+        second = upload_document(client, token, "b" * (250 * 1024), filename="second.txt")
+
+    assert first.status_code == 200
+    assert second.status_code == 403
+    assert second.get_json()["error"] == "Storage limit reached. Delete old files or upgrade your plan before uploading more files."
+
+
+def test_delete_document_removes_physical_source_file(client):
+    token = login(client, uid="document-file-delete-user")
+    upload = upload_document(client, token, "Delete this source file.")
+    document_id = upload.get_json()["document"]["id"]
+
+    db = db_session()
+    document = db.get(Document, document_id)
+    storage_path = Path(document.storage_path)
+
+    assert storage_path.exists()
+    assert storage_path.name.startswith(document_id)
+    assert "notes" not in storage_path.name
+
+    deleted = client.delete(f"/api/documents/{document_id}", headers={"X-CSRF-Token": token})
+
+    assert deleted.status_code == 200
+    assert not storage_path.exists()
+
+
+def test_missing_document_source_file_returns_json_404(client):
+    token = login(client, uid="missing-source-user")
+    upload = upload_document(client, token, "This file will be removed.")
+    document = upload.get_json()["document"]
+
+    db = db_session()
+    saved = db.get(Document, document["id"])
+    Path(saved.storage_path).unlink()
+
+    response = client.get(document["url"])
+
+    assert response.status_code == 404
+    assert response.is_json
+    assert response.get_json()["error"] == "Document source file is unavailable."
+
+
+def test_user_cannot_delete_another_users_document_file(client):
+    token_a = login(client, uid="file-owner-a", email="a@example.com")
+    upload = upload_document(client, token_a, "User A owns this file.")
+    document_id = upload.get_json()["document"]["id"]
+
+    db = db_session()
+    document = db.get(Document, document_id)
+    storage_path = Path(document.storage_path)
+
+    token_b = login(client, uid="file-owner-b", email="b@example.com")
+    response = client.delete(f"/api/documents/{document_id}", headers={"X-CSRF-Token": token_b})
+
+    assert response.status_code == 404
+    assert storage_path.exists()
+    assert db.get(Document, document_id) is not None

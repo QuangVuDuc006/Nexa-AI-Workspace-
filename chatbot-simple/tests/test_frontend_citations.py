@@ -145,3 +145,11 @@ def test_frontend_citation_renderer_is_wired_after_markdown_and_skips_math_code(
     assert "citation-ref" in citations_js
     assert "openCitationSource" not in chat_js
     assert "source-preview-panel" not in chat_js
+
+
+def test_pending_attachment_client_id_is_not_overwritten_by_empty_server_id():
+    chat_js = (PROJECT_DIR / "static" / "chat.js").read_text(encoding="utf-8")
+
+    attachment_push = chat_js.split("pendingAttachments.push({", 1)[1].split("});", 1)[0]
+    assert attachment_push.index("...attachment") < attachment_push.index("id: attachment.id || createId")
+    assert "if (!attachmentId) {\n            return;\n        }" in chat_js

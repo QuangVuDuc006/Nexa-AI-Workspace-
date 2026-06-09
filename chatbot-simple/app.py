@@ -69,6 +69,7 @@ def create_app():
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SECURE"] = settings.session_cookie_secure
     app.config["SESSION_COOKIE_SAMESITE"] = settings.session_cookie_samesite
+    app.config["PERMANENT_SESSION_LIFETIME"] = settings.permanent_session_lifetime
     app.config["MAX_CONTENT_LENGTH"] = settings.max_upload_bytes
     settings.upload_storage_dir.mkdir(parents=True, exist_ok=True)
     configure_logging(app)

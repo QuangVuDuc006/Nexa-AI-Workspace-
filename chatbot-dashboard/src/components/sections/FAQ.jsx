@@ -8,8 +8,8 @@ export function FAQ() {
     <section id="faq" className="landing-section px-6 md:px-16">
       <SectionHeader
         label="FAQs"
-        title="Questions before you connect a provider"
-        description="Quick answers about supported APIs, model detection, switching, and key handling."
+        title="Questions before you launch Nexa"
+        description="Provider support, memory, documents, security, and self-hosting."
         typewriter
       />
       <FAQAccordion items={faqs} />

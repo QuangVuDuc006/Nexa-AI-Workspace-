@@ -111,6 +111,15 @@ document.addEventListener("DOMContentLoaded", () => {
         connectionStatus: document.querySelector(".connection-status"),
         savedProviderList: document.querySelector(".saved-provider-list"),
         activeProviderSummary: document.querySelector(".active-provider-summary"),
+        storagePlanBadge: document.querySelector(".storage-plan-badge"),
+        storageWarning: document.querySelector(".storage-warning"),
+        storageUsageLabel: document.querySelector(".storage-usage-label"),
+        storagePercentLabel: document.querySelector(".storage-percent-label"),
+        storageProgressBar: document.querySelector(".storage-progress-bar"),
+        storageBreakdown: document.querySelector(".storage-breakdown"),
+        documentSearchInput: document.querySelector(".document-search-input"),
+        documentSortSelect: document.querySelector(".document-sort-select"),
+        documentList: document.querySelector(".document-list"),
         autoScrollToggle: document.querySelector(".auto-scroll-toggle"),
         activeTitle: document.querySelector(".active-title"),
         messageForm: document.querySelector(".composer"),
@@ -128,6 +137,8 @@ document.addEventListener("DOMContentLoaded", () => {
         sidebarToggleButtons: Array.from(document.querySelectorAll(".sidebar-toggle-lock")),
         settingsDialog: document.querySelector(".settings-dialog"),
         settingsCloseButton: document.querySelector(".dialog-close-button"),
+        usageDialog: document.querySelector(".usage-dialog"),
+        usageCloseButton: document.querySelector(".usage-close-button"),
         personalizationDialog: document.querySelector(".personalization-dialog"),
         personalizationCloseButton: document.querySelector(".personalization-close-button"),
         renameDialog: document.querySelector(".rename-dialog"),
@@ -173,6 +184,14 @@ document.addEventListener("DOMContentLoaded", () => {
         editingMemoryId: "",
         isSavingPersonalization: false,
         isSavingMemory: false,
+    };
+    let storageWorkspace = {
+        storage: null,
+        documents: [],
+        loaded: false,
+        search: "",
+        sort: "date-desc",
+        deletingId: "",
     };
     let detectedProvider = null;
     let editingProviderId = "";
@@ -1035,6 +1054,201 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast("Đã xóa memory");
         } catch (error) {
             showToast(error.message || "Could not delete memory", "error");
+        }
+    }
+
+    function normalizeStoragePayload(storage) {
+        const usedBytes = Number(storage?.usedBytes ?? storage?.used_bytes) || 0;
+        const limitBytes = Number(storage?.limitBytes ?? storage?.limit_bytes) || 0;
+        const percentUsed = Number(storage?.percentUsed ?? storage?.percent_used) || (limitBytes > 0 ? (usedBytes / limitBytes) * 100 : 0);
+
+        return {
+            plan: String(storage?.plan || "free"),
+            usedBytes,
+            limitBytes,
+            remainingBytes: Number(storage?.remainingBytes ?? storage?.remaining_bytes) || Math.max(0, limitBytes - usedBytes),
+            percentUsed,
+            isWarning: Boolean(storage?.isWarning ?? storage?.is_warning),
+            isFull: Boolean(storage?.isFull ?? storage?.is_full),
+            breakdown: storage?.breakdown || {},
+        };
+    }
+
+    function normalizeDocument(document) {
+        return {
+            id: String(document?.id || ""),
+            filename: String(document?.filename || "document"),
+            size: Number(document?.size) || 0,
+            chunkCount: Number(document?.chunkCount ?? document?.chunk_count) || 0,
+            createdAt: Number(document?.createdAt) || 0,
+            lastUsedAt: Number(document?.lastUsedAt) || 0,
+            url: String(document?.url || ""),
+        };
+    }
+
+    function documentTimestampLabel(value) {
+        return value ? formatDate(value) : "Never used";
+    }
+
+    function sortedStorageDocuments() {
+        const query = storageWorkspace.search.trim().toLowerCase();
+        const documents = storageWorkspace.documents.filter((document) =>
+            document.filename.toLowerCase().includes(query)
+        );
+
+        documents.sort((left, right) => {
+            switch (storageWorkspace.sort) {
+                case "date-asc":
+                    return left.createdAt - right.createdAt || left.filename.localeCompare(right.filename);
+                case "size-desc":
+                    return right.size - left.size || left.filename.localeCompare(right.filename);
+                case "size-asc":
+                    return left.size - right.size || left.filename.localeCompare(right.filename);
+                case "name-asc":
+                    return left.filename.localeCompare(right.filename);
+                case "date-desc":
+                default:
+                    return right.createdAt - left.createdAt || left.filename.localeCompare(right.filename);
+            }
+        });
+
+        return documents;
+    }
+
+    function renderStorageSettings() {
+        const storage = storageWorkspace.storage || normalizeStoragePayload({});
+        const percent = Math.max(0, Math.min(100, storage.percentUsed || 0));
+        const breakdown = storage.breakdown || {};
+
+        if (els.storagePlanBadge) {
+            els.storagePlanBadge.textContent = storage.plan || "Free";
+        }
+
+        if (els.storageUsageLabel) {
+            els.storageUsageLabel.textContent = `${formatBytes(storage.usedBytes)} / ${formatBytes(storage.limitBytes || 0)}`;
+        }
+
+        if (els.storagePercentLabel) {
+            els.storagePercentLabel.textContent = `${Math.round(percent)}%`;
+        }
+
+        if (els.storageProgressBar) {
+            els.storageProgressBar.style.width = `${percent}%`;
+            els.storageProgressBar.classList.toggle("full", storage.isFull);
+        }
+
+        if (els.storageWarning) {
+            els.storageWarning.hidden = !storage.isWarning;
+            els.storageWarning.textContent = storage.isFull
+                ? `Không thể tải thêm file. Dung lượng hiện tại: ${formatBytes(storage.usedBytes)} / ${formatBytes(storage.limitBytes)}. Hãy xóa file cũ hoặc nâng cấp gói.`
+                : "Bạn đã sử dụng 80% dung lượng lưu trữ. Hãy xóa các file không cần thiết hoặc nâng cấp gói.";
+        }
+
+        if (els.storageBreakdown) {
+            const items = [
+                ["Files", breakdown.filesBytes ?? breakdown.files_bytes ?? 0],
+                ["Embeddings", breakdown.embeddingsBytes ?? breakdown.embeddings_bytes ?? 0],
+                ["Memory", breakdown.memoryBytes ?? breakdown.memory_bytes ?? 0],
+                ["Other", breakdown.otherBytes ?? breakdown.other_bytes ?? 0],
+            ];
+            els.storageBreakdown.innerHTML = items.map(([label, value]) => `
+                <div class="storage-breakdown-item">
+                    <span>${escapeHtml(label)}</span>
+                    <strong>${formatBytes(Number(value) || 0)}</strong>
+                </div>
+            `).join("");
+        }
+
+        if (els.documentSearchInput && document.activeElement !== els.documentSearchInput) {
+            els.documentSearchInput.value = storageWorkspace.search;
+        }
+
+        if (els.documentSortSelect && document.activeElement !== els.documentSortSelect) {
+            els.documentSortSelect.value = storageWorkspace.sort;
+        }
+
+        if (els.documentList) {
+            const documents = sortedStorageDocuments();
+
+            if (!storageWorkspace.loaded) {
+                els.documentList.innerHTML = `<div class="document-empty">Loading documents...</div>`;
+            } else if (documents.length === 0) {
+                els.documentList.innerHTML = `<div class="document-empty">No uploaded documents found.</div>`;
+            } else {
+                els.documentList.innerHTML = documents.map((documentItem) => `
+                    <div class="document-item" data-document-id="${escapeAttribute(documentItem.id)}">
+                        <div class="document-copy">
+                            <strong>${escapeHtml(documentItem.filename)}</strong>
+                            <span>${formatBytes(documentItem.size)} · ${documentItem.chunkCount} chunks · Uploaded ${documentTimestampLabel(documentItem.createdAt)} · Last used ${documentTimestampLabel(documentItem.lastUsedAt)}</span>
+                        </div>
+                        <button class="document-delete-button" type="button" data-document-action="delete" aria-label="Delete ${escapeAttribute(documentItem.filename)}" ${storageWorkspace.deletingId === documentItem.id ? "disabled" : ""}>
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </div>
+                `).join("");
+            }
+        }
+
+        renderIcons();
+    }
+
+    async function loadStorageSettings() {
+        if (!els.storageUsageLabel && !els.documentList) {
+            return;
+        }
+
+        renderStorageSettings();
+
+        try {
+            const response = await apiFetch("/api/documents");
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.error || "Could not load storage usage.");
+            }
+
+            storageWorkspace.documents = Array.isArray(data.documents)
+                ? data.documents.map(normalizeDocument).filter((documentItem) => documentItem.id)
+                : [];
+            storageWorkspace.storage = normalizeStoragePayload(data.storage || {});
+            storageWorkspace.loaded = true;
+            renderStorageSettings();
+        } catch (error) {
+            storageWorkspace.loaded = true;
+            renderStorageSettings();
+            showToast(error.message || "Could not load storage usage", "error");
+        }
+    }
+
+    async function deleteStorageDocument(documentId) {
+        const documentItem = storageWorkspace.documents.find((item) => item.id === documentId);
+
+        if (!documentItem) {
+            return;
+        }
+
+        storageWorkspace.deletingId = documentId;
+        renderStorageSettings();
+
+        try {
+            const response = await apiFetch(`/api/documents/${encodeURIComponent(documentId)}`, {
+                method: "DELETE",
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.error || "Could not delete document.");
+            }
+
+            storageWorkspace.documents = storageWorkspace.documents.filter((item) => item.id !== documentId);
+            storageWorkspace.storage = normalizeStoragePayload(data.storage || storageWorkspace.storage || {});
+            showToast("Document deleted");
+            await loadStorageSettings();
+        } catch (error) {
+            showToast(error.message || "Could not delete document", "error");
+        } finally {
+            storageWorkspace.deletingId = "";
+            renderStorageSettings();
         }
     }
 
@@ -2482,9 +2696,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 state.activeConversationId = state.conversations[0].id;
                 renderApp({ forceScroll: true });
             }
+            await loadStorageSettings();
         } catch (error) {
             showToast(error.message || "Could not clear history", "error");
             await loadConversations();
+            await loadStorageSettings();
         }
     }
 
@@ -2511,9 +2727,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!response.ok) {
                 throw new Error(data.error || "Could not delete conversation.");
             }
+            await loadStorageSettings();
         } catch (error) {
             showToast(error.message || "Could not delete conversation", "error");
             await loadConversations();
+            await loadStorageSettings();
         }
     }
 
@@ -2629,9 +2847,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!response.ok) {
                 throw new Error(data.error || "Could not delete response.");
             }
+            await loadStorageSettings();
         } catch (error) {
             showToast(error.message || "Could not delete response", "error");
             await loadConversations();
+            await loadStorageSettings();
         }
     }
 
@@ -2692,6 +2912,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function closeAllDialogs() {
         [
             els.settingsDialog,
+            els.usageDialog,
             els.personalizationDialog,
             els.renameDialog,
             els.confirmDialog,
@@ -2707,7 +2928,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function openConfirmDialog({ title, message, actionLabel, onConfirm }) {
         configureConfirmDialog(els, { title, message, actionLabel });
-        openDialog(els.confirmDialog, els.confirmAcceptButton);
+        closeDialog(els.confirmDialog);
+        openDialogElement(els.confirmDialog, els.confirmAcceptButton);
         confirmCallback = onConfirm;
     }
 
@@ -2735,6 +2957,15 @@ document.addEventListener("DOMContentLoaded", () => {
             const focusTarget = section?.querySelector("textarea, select, input, button");
             section?.scrollIntoView({ block: "nearest" });
             focusTarget?.focus();
+        }, 80);
+    }
+
+    function openUsageDialog() {
+        openDialog(els.usageDialog, els.documentSearchInput);
+        loadStorageSettings();
+
+        window.setTimeout(() => {
+            els.documentSearchInput?.focus();
         }, 80);
     }
 
@@ -2979,10 +3210,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 try {
                     const attachment = await uploadFileToServer(file);
                     pendingAttachments.push({
-                        id: attachment.id || createId(attachment.kind === "image" ? "image" : "file"),
                         ...attachment,
+                        id: attachment.id || createId(attachment.kind === "image" ? "image" : "file"),
                         previewUrl: attachment.previewUrl || attachment.url || attachment.dataUrl || "",
                     });
+                    loadStorageSettings();
                 } catch (error) {
                     showToast(error.message || `Could not upload ${file.name}`, "error");
                 }
@@ -2995,6 +3227,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function removeAttachment(attachmentId) {
+        if (!attachmentId) {
+            return;
+        }
+
         const attachment = pendingAttachments.find((item) => item.id === attachmentId);
         revokeAttachmentObjectUrl(attachment);
         pendingAttachments = pendingAttachments.filter((item) => item.id !== attachmentId);
@@ -3032,6 +3268,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         });
+        document.querySelectorAll("[data-action='open-storage-settings']").forEach((button) => {
+            button.addEventListener("click", () => {
+                openUsageDialog();
+
+                if (mobileSidebarQuery.matches) {
+                    setSidebarOpen(false);
+                }
+            });
+        });
         document.querySelectorAll("[data-action='open-personalization-settings']").forEach((button) => {
             button.addEventListener("click", () => {
                 openPersonalizationDialog();
@@ -3043,7 +3288,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         document.querySelectorAll("[data-action='open-file-upload']").forEach((button) => {
             button.addEventListener("click", () => {
-                els.fileInput.click();
+                openUsageDialog();
 
                 if (mobileSidebarQuery.matches) {
                     setSidebarOpen(false);
@@ -3084,6 +3329,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderIcons();
         });
         els.settingsCloseButton.addEventListener("click", () => closeDialog(els.settingsDialog));
+        els.usageCloseButton?.addEventListener("click", () => closeDialog(els.usageDialog));
         els.personalizationCloseButton?.addEventListener("click", () => closeDialog(els.personalizationDialog));
         els.renameChatButton.addEventListener("click", () => openRenameDialog(state.activeConversationId));
         els.renameCloseButton.addEventListener("click", () => closeDialog(els.renameDialog));
@@ -3328,6 +3574,38 @@ document.addEventListener("DOMContentLoaded", () => {
             saveRename();
         });
 
+        els.documentSearchInput?.addEventListener("input", () => {
+            storageWorkspace.search = els.documentSearchInput.value;
+            renderStorageSettings();
+        });
+
+        els.documentSortSelect?.addEventListener("change", () => {
+            storageWorkspace.sort = els.documentSortSelect.value || "date-desc";
+            renderStorageSettings();
+        });
+
+        els.documentList?.addEventListener("click", (event) => {
+            const button = event.target.closest("[data-document-action='delete']");
+
+            if (!button) {
+                return;
+            }
+
+            const documentId = event.target.closest(".document-item")?.dataset.documentId;
+            const documentItem = storageWorkspace.documents.find((item) => item.id === documentId);
+
+            if (!documentItem) {
+                return;
+            }
+
+            openConfirmDialog({
+                title: "Delete document?",
+                message: `Delete ${documentItem.filename}? This removes the uploaded file and its RAG chunks.`,
+                actionLabel: "Delete",
+                onConfirm: () => deleteStorageDocument(documentId),
+            });
+        });
+
         els.messageForm.addEventListener("submit", (event) => {
             event.preventDefault();
             submitCurrentMessage();
@@ -3395,6 +3673,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderApp({ forceScroll: true });
     loadProviders();
     loadPersonalizationSettings();
+    loadStorageSettings();
     loadConversations().then(migrateLegacyLocalHistory);
 });
 }

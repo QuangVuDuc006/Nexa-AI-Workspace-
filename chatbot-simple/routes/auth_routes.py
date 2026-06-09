@@ -17,6 +17,49 @@ def verify_firebase_id_token_for_app(*args, **kwargs):
     return getattr(sys.modules.get("app"), "verify_firebase_id_token", verify_firebase_id_token)(*args, **kwargs)
 
 
+def email_domain(email):
+    email = normalize_email(email)
+
+    if "@" not in email:
+        return ""
+
+    return email.rsplit("@", 1)[1]
+
+
+def validate_auth_access_policy(settings, payload, email):
+    if settings.auth_require_email_verified and payload.get("email_verified") is not True:
+        return error_response(
+            403,
+            "email_verification_required",
+            "Email verification required",
+        )
+
+    if settings.auth_allow_public_signin:
+        return None
+
+    allowed_emails = set(settings.auth_allowed_emails or ())
+    allowed_domains = set(settings.auth_allowed_email_domains or ())
+
+    if not allowed_emails and not allowed_domains:
+        return error_response(
+            503,
+            "auth_access_policy_not_configured",
+            "Authentication access policy is not configured",
+        )
+
+    normalized_email = normalize_email(email)
+    domain = email_domain(normalized_email)
+
+    if normalized_email in allowed_emails or domain in allowed_domains:
+        return None
+
+    return error_response(
+        403,
+        "email_not_allowed",
+        "This email is not allowed to access Nexa AI",
+    )
+
+
 def create_auth_blueprint(deps):
     bp = Blueprint("auth_routes", __name__)
 
@@ -51,10 +94,12 @@ def create_auth_blueprint(deps):
 
     @bp.get("/logout")
     def logout():
+        session.clear()
         return redirect(url_for("landing"))
 
     @bp.post("/logout")
     @csrf_protect
+    @rate_limit("auth")
     def logout_post():
         session.clear()
         return redirect(url_for("landing"))
@@ -75,7 +120,7 @@ def create_auth_blueprint(deps):
 
     @bp.post("/api/firebase/session")
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("auth")
     def firebase_session():
         from flask import current_app
 
@@ -100,6 +145,10 @@ def create_auth_blueprint(deps):
         if not uid:
             return error_response(401, "invalid_firebase_token", "Verified Firebase token did not include a user id.")
 
+        policy_error = validate_auth_access_policy(deps.settings, payload, email)
+        if policy_error:
+            return policy_error
+
         user = {
             "id": uid,
             "email": email,
@@ -112,12 +161,14 @@ def create_auth_blueprint(deps):
         upsert_user(db, user)
         db.commit()
         session.clear()
+        session.permanent = True
         session["user"] = user
         get_csrf_token()
         return jsonify({"authenticated": True, "user": user, "csrfToken": session["csrf_token"]})
 
     @bp.post("/api/firebase/logout")
     @csrf_protect
+    @rate_limit("auth")
     def firebase_logout():
         session.clear()
         return jsonify({"authenticated": False})

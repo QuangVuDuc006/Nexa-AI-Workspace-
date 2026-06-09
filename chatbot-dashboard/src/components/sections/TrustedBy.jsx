@@ -17,10 +17,10 @@ export function TrustedBy() {
     >
       <motion.div variants={revealVariants} className="grid max-w-2xl justify-items-center gap-3 text-center">
         <p className="text-lg font-semibold tracking-[-0.025em] text-white md:text-xl">
-          Connect and switch between leading AI models
+          Model choice without workspace sprawl
         </p>
         <p className="max-w-xl text-sm leading-6 text-mist-300">
-          Connect your API key, detect supported models, and chat from one simple interface.
+          Connect the providers you already trust and keep one workflow for memory, files, and chat.
         </p>
       </motion.div>
       <motion.div variants={staggerContainer} className="grid w-full grid-cols-2 gap-4 md:grid-cols-4">

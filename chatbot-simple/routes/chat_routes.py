@@ -10,8 +10,10 @@ from services.memory_service import MemoryValidationError, create_memory, detect
 from services.persistence import serialize_conversation, serialize_message, update_assistant_message
 from services.rag.rag_context_builder import build_rag_context
 from services.security import csrf_protect, rate_limit
+from services.storage_safety import StorageQuotaError
 
 from .common import (
+    ConversationQuotaError,
     db_user,
     json_stream_event,
     parse_chat_payload,
@@ -82,7 +84,7 @@ def create_chat_blueprint(deps):
     @bp.post("/api/chat")
     @login_required
     @csrf_protect
-    @rate_limit("chat_rate_limit_per_window")
+    @rate_limit("chat")
     def chat():
         db = db_session()
         user = db_user(db)
@@ -106,6 +108,8 @@ def create_chat_blueprint(deps):
                 payload["message"],
                 db=db,
                 settings=deps.settings,
+                document_ids=payload["attached_document_ids"],
+                conversation_id=payload["conversation_id"],
             )
             context_message = build_conversation_context(
                 payload["conversation_id"],
@@ -185,6 +189,12 @@ def create_chat_blueprint(deps):
                 "assistant_message": serialize_message_with_citations(assistant, rag_context["citations"]),
                 "citations": rag_context["citations"],
             })
+        except StorageQuotaError as error:
+            db.rollback()
+            return error_response(403, "upload_quota_exceeded", str(error))
+        except ConversationQuotaError as error:
+            db.rollback()
+            return error_response(403, "conversation_quota_exceeded", str(error))
         except ValueError as error:
             db.rollback()
             return error_response(422, "invalid_request", str(error))
@@ -204,7 +214,7 @@ def create_chat_blueprint(deps):
     @bp.post("/api/chat/stream")
     @login_required
     @csrf_protect
-    @rate_limit("chat_rate_limit_per_window")
+    @rate_limit("stream")
     def chat_stream():
         db = db_session()
         user = db_user(db)
@@ -228,6 +238,8 @@ def create_chat_blueprint(deps):
                 payload["message"],
                 db=db,
                 settings=deps.settings,
+                document_ids=payload["attached_document_ids"],
+                conversation_id=payload["conversation_id"],
             )
             context_message = build_conversation_context(
                 payload["conversation_id"],
@@ -267,6 +279,12 @@ def create_chat_blueprint(deps):
                 },
             )
             db.commit()
+        except StorageQuotaError as error:
+            db.rollback()
+            return error_response(403, "upload_quota_exceeded", str(error))
+        except ConversationQuotaError as error:
+            db.rollback()
+            return error_response(403, "conversation_quota_exceeded", str(error))
         except ValueError as error:
             db.rollback()
             return error_response(422, "invalid_request", str(error))

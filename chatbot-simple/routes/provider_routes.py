@@ -28,7 +28,7 @@ def create_provider_blueprint(deps):
 
     @bp.get("/api/providers")
     @login_required
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("api")
     def providers_list():
         db = db_session()
         user = db_user(db)
@@ -38,7 +38,7 @@ def create_provider_blueprint(deps):
 
     @bp.get("/api/models")
     @login_required
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("api")
     def models_list():
         db = db_session()
         user = db_user(db)
@@ -56,7 +56,7 @@ def create_provider_blueprint(deps):
     @bp.post("/api/providers/detect-models")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("provider_test")
     def providers_detect_models():
         data = request.get_json(silent=True) or {}
         db = db_session()
@@ -95,7 +95,7 @@ def create_provider_blueprint(deps):
     @bp.post("/api/providers/test")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("provider_test")
     def providers_test():
         data = request.get_json(silent=True) or {}
         db = db_session()
@@ -141,13 +141,20 @@ def create_provider_blueprint(deps):
     @bp.post("/api/providers")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("api")
     def providers_save():
         data = request.get_json(silent=True) or {}
         db = db_session()
         user = db_user(db)
 
         try:
+            if not str(data.get("connectionId") or "").strip() and len(list_connections(db, user.id)) >= deps.settings.max_provider_connections_per_user:
+                return error_response(
+                    403,
+                    "provider_connection_quota_exceeded",
+                    f"You can save up to {deps.settings.max_provider_connections_per_user} provider connections.",
+                )
+
             connection = save_connection(
                 db,
                 user.id,
@@ -184,7 +191,7 @@ def create_provider_blueprint(deps):
     @bp.patch("/api/providers/<connection_id>")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("api")
     def providers_update(connection_id):
         data = request.get_json(silent=True) or {}
         db = db_session()
@@ -219,7 +226,7 @@ def create_provider_blueprint(deps):
     @bp.post("/api/providers/<connection_id>/activate")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("api")
     def providers_activate(connection_id):
         db = db_session()
         user = db_user(db)
@@ -244,7 +251,7 @@ def create_provider_blueprint(deps):
     @bp.delete("/api/providers/<connection_id>")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("api")
     def providers_delete(connection_id):
         db = db_session()
         user = db_user(db)

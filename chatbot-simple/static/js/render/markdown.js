@@ -109,6 +109,17 @@ export function createMathNode(source, displayMode) {
         return document.createTextNode(fallbackText);
     }
 
+    try {
+        window.katex.renderToString(normalizedSource, {
+            displayMode,
+            strict: "ignore",
+            throwOnError: true,
+            trust: false,
+        });
+    } catch (error) {
+        return document.createTextNode(fallbackText);
+    }
+
     const wrapper = document.createElement(displayMode ? "div" : "span");
     wrapper.className = displayMode ? "math-block" : "math-inline";
 
@@ -116,7 +127,7 @@ export function createMathNode(source, displayMode) {
         wrapper.innerHTML = window.katex.renderToString(normalizedSource, {
             displayMode,
             strict: "ignore",
-            throwOnError: false,
+            throwOnError: true,
             trust: false,
         });
         return wrapper;

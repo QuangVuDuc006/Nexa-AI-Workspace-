@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 from flask import jsonify, request
+from sqlalchemy import func, select
 
 from services.ai.connections import (
     get_active_connection,
@@ -30,6 +32,7 @@ from services.persistence import (
 
 
 MAX_ATTACHMENTS = 4
+logger = logging.getLogger(__name__)
 FIREBASE_WEB_CONFIG_KEYS = {
     "apiKey": "VITE_FIREBASE_API_KEY",
     "authDomain": "VITE_FIREBASE_AUTH_DOMAIN",
@@ -48,6 +51,10 @@ class RouteDeps:
     app_root: Path
     project_root: Path
     landing_dist: Path
+
+
+class ConversationQuotaError(ValueError):
+    pass
 
 
 def get_firebase_web_config():
@@ -182,6 +189,20 @@ def parse_chat_payload(deps: RouteDeps, db, user_id):
         raise ValueError(f"You can attach up to {MAX_ATTACHMENTS} files.")
 
     attachments = normalize_attachments_for_provider(db, user_id, raw_attachments, deps.settings)
+    attached_document_ids = []
+
+    for attachment in attachments:
+        document_id = str(attachment.get("document_id") or attachment.get("documentId") or "").strip()
+
+        if document_id and document_id not in attached_document_ids:
+            attached_document_ids.append(document_id)
+
+    logger.warning(
+        "chat payload attachments raw_attachment_count=%s normalized_attachment_count=%s attached_document_ids=%s",
+        len(raw_attachments),
+        len(attachments),
+        attached_document_ids,
+    )
 
     if not user_message and not attachments:
         raise ValueError("Message is required.")
@@ -192,6 +213,7 @@ def parse_chat_payload(deps: RouteDeps, db, user_id):
     return {
         "message": user_message,
         "attachments": attachments,
+        "attached_document_ids": attached_document_ids,
         "conversation_id": clean_client_id(data.get("conversationId") or data.get("conversation_id"), "conv"),
         "conversation_title": clean_title(data.get("conversationTitle") or data.get("conversation_title") or user_message[:80]),
         "user_message_id": clean_client_id(data.get("userMessageId") or data.get("user_message_id"), "msg"),
@@ -200,7 +222,19 @@ def parse_chat_payload(deps: RouteDeps, db, user_id):
 
 
 def prepare_persisted_chat(deps: RouteDeps, payload, db, user_id):
-    from services.database import utc_now
+    from services.database import Conversation, utc_now
+
+    existing = db.get(Conversation, payload["conversation_id"])
+
+    if not existing:
+        conversation_count = int(
+            db.scalar(select(func.count(Conversation.id)).where(Conversation.user_id == user_id)) or 0
+        )
+
+        if conversation_count >= deps.settings.max_conversations_per_user:
+            raise ConversationQuotaError(
+                f"You can save up to {deps.settings.max_conversations_per_user} conversations."
+            )
 
     conversation = ensure_conversation(
         db,

@@ -115,7 +115,7 @@ def read_uploaded_file(file_storage, settings):
 
     if size > settings.max_upload_bytes:
         raise UploadError(
-            f"{filename} is larger than the configured upload limit.",
+            f"{filename} exceeds the {settings.max_upload_mb} MB upload limit.",
             status_code=413,
             code="file_too_large",
         )
@@ -166,7 +166,16 @@ def process_uploaded_file(file_storage, settings):
             "dataUrl": file_to_data_url(mime_type, raw),
         }
 
-    content = extract_text(filename, mime_type, raw)
+    pages = extract_text_pages(filename, mime_type, raw)
+    pages = [
+        {
+            "content": str(page.get("content") or "").strip(),
+            "page_number": page.get("page_number"),
+        }
+        for page in pages
+        if str(page.get("content") or "").strip()
+    ]
+    content = "\n\n".join(page["content"] for page in pages).strip()
 
     if not content.strip():
         raise UploadError(f"No readable text was found in {filename}.", code="empty_extracted_text")
@@ -180,6 +189,7 @@ def process_uploaded_file(file_storage, settings):
         "size": size,
         "content": content[: settings.max_attachment_chars],
         "_source_bytes": raw,
+        "_pages": pages,
     }
 
 

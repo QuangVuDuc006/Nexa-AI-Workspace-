@@ -51,6 +51,15 @@ class JsonFormatter(logging.Formatter):
 
 def configure_logging(app):
     if not app.config["APP_SETTINGS"].is_production:
+        root_logger = logging.getLogger()
+
+        if not root_logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+            root_logger.addHandler(handler)
+
+        root_logger.setLevel(logging.WARNING)
+        app.logger.setLevel(logging.WARNING)
         return
 
     handler = logging.StreamHandler()

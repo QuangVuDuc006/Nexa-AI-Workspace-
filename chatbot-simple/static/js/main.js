@@ -1,6 +1,6 @@
 import { createApiClient } from "./api.js";
 import { createUploadsFeature } from "./features/uploads.js";
-import { initChatWorkspace } from "../chat.js?v=phase7-theme-sidebar-buttons-1";
+import { initChatWorkspace } from "../chat.js?v=math-error-fallback-1";
 
 const apiClient = createApiClient(document.body?.dataset.csrfToken || "");
 

@@ -237,6 +237,7 @@ def create_memory(
     db=None,
     status="active",
     last_seen_at=None,
+    max_active=30,
 ):
     user_id = str(user_id or "").strip()
     source = str(source or "manual").strip()
@@ -272,13 +273,13 @@ def create_memory(
         session.flush()
 
         if status == "active":
-            enforce_memory_limit(user_id, db=session, protect_id=memory.id)
+            enforce_memory_limit(user_id, max_active=max_active, db=session, protect_id=memory.id)
 
         session.flush()
         return memory
 
 
-def update_memory(user_id, memory_id, payload, *, db=None):
+def update_memory(user_id, memory_id, payload, *, db=None, max_active=30):
     user_id = str(user_id or "").strip()
     payload = payload if isinstance(payload, dict) else {}
 
@@ -310,7 +311,7 @@ def update_memory(user_id, memory_id, payload, *, db=None):
         memory.updated_at = utc_now()
 
         if memory.status == "active":
-            enforce_memory_limit(user_id, db=session, protect_id=memory.id)
+            enforce_memory_limit(user_id, max_active=max_active, db=session, protect_id=memory.id)
 
         session.flush()
         return memory

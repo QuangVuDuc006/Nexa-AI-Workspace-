@@ -1,19 +1,36 @@
 from __future__ import annotations
 
 import secrets
-import time
-from collections import defaultdict, deque
 from functools import wraps
 from urllib.parse import urlparse
 
-from flask import current_app, request, session
+from flask import current_app, jsonify, request, session
+from flask_limiter import Limiter
+from werkzeug.exceptions import RequestEntityTooLarge, TooManyRequests
 
 from services.auth import current_user
 from services.http import error_response
 
+try:
+    import redis
+except ImportError:  # pragma: no cover - dependency is declared for deployment.
+    redis = None
+
 
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
-_rate_buckets = defaultdict(deque)
+RATE_LIMIT_CATEGORY_ATTRS = {
+    "auth": "rate_limit_auth",
+    "api": "rate_limit_api",
+    "chat": "rate_limit_chat",
+    "stream": "rate_limit_stream",
+    "upload": "rate_limit_upload",
+    "provider_test": "rate_limit_provider_test",
+    "memory": "rate_limit_memory",
+    "documents": "rate_limit_documents",
+    "api_rate_limit_per_window": "rate_limit_api",
+    "chat_rate_limit_per_window": "rate_limit_chat",
+}
+_limiter = None
 
 
 def get_csrf_token():
@@ -83,39 +100,121 @@ def client_ip():
     return request.remote_addr or "unknown"
 
 
+def rate_limit_key():
+    user = current_user() or {}
+    user_id = str(user.get("id") or "").strip()
+
+    if user_id:
+        return f"user:{user_id}"
+
+    return f"ip:{request.remote_addr or 'unknown'}"
+
+
+def rate_limit_response():
+    return jsonify({
+        "error": "Too many requests",
+        "message": "Rate limit exceeded. Please try again later.",
+    }), 429
+
+
+def rate_limit_value(category):
+    def value():
+        settings = current_app.config["APP_SETTINGS"]
+        setting_name = RATE_LIMIT_CATEGORY_ATTRS.get(category, category)
+        limit = getattr(settings, setting_name, None)
+
+        if not limit:
+            raise RuntimeError(f"Unknown rate limit category: {category}")
+
+        return limit
+
+    return value
+
+
+def rate_limit_storage_uri(settings):
+    if settings.rate_limit_backend == "redis":
+        return settings.redis_url
+
+    return "memory://"
+
+
+def validate_redis_rate_limiter(settings):
+    if settings.rate_limit_backend != "redis":
+        return True
+
+    if redis is None:
+        if settings.rate_limit_fail_open:
+            return False
+        raise RuntimeError("Flask-Limiter Redis support is required when RATE_LIMIT_BACKEND=redis.")
+
+    try:
+        client = redis.Redis.from_url(settings.redis_url, socket_connect_timeout=2, socket_timeout=2)
+        client.ping()
+        return True
+    except Exception as error:
+        if settings.rate_limit_fail_open:
+            current_app.logger.error(
+                "Redis rate limiter is unavailable; RATE_LIMIT_FAIL_OPEN=true so requests will not be limited.",
+                extra={"error": str(error)},
+            )
+            return False
+
+        raise RuntimeError("Redis rate limiter is unavailable.") from error
+
+
+def init_rate_limiter(app):
+    global _limiter
+
+    settings = app.config["APP_SETTINGS"]
+
+    with app.app_context():
+        limiter_enabled = validate_redis_rate_limiter(settings)
+
+    _limiter = Limiter(
+        key_func=rate_limit_key,
+        app=app,
+        storage_uri=rate_limit_storage_uri(settings),
+        strategy="fixed-window",
+        headers_enabled=True,
+        enabled=limiter_enabled,
+    )
+
+    @app.errorhandler(TooManyRequests)
+    def handle_rate_limit_exceeded(_error):
+        return rate_limit_response()
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_upload_too_large(_error):
+        settings = current_app.config["APP_SETTINGS"]
+        return error_response(
+            413,
+            "file_too_large",
+            f"Upload exceeds the {settings.max_upload_mb} MB upload limit.",
+        )
+
+
 def rate_limit(limit_attr):
     def decorator(fn):
-        @wraps(fn)
-        def wrapper(*args, **kwargs):
-            settings = current_app.config["APP_SETTINGS"]
-            limit = getattr(settings, limit_attr)
-            window = settings.rate_limit_window_seconds
-            now = time.monotonic()
-            user = current_user() or {}
-            identity = user.get("id") or f"ip:{client_ip()}"
-            key = (limit_attr, identity, client_ip())
-            bucket = _rate_buckets[key]
+        if _limiter is None:
+            @wraps(fn)
+            def wrapper(*args, **kwargs):
+                return fn(*args, **kwargs)
 
-            while bucket and now - bucket[0] >= window:
-                bucket.popleft()
+            return wrapper
 
-            if len(bucket) >= limit:
-                return error_response(
-                    429,
-                    "rate_limited",
-                    "Too many requests. Please slow down and try again shortly.",
-                    retry_after=window,
-                )
-
-            bucket.append(now)
-            return fn(*args, **kwargs)
-
-        return wrapper
+        return _limiter.shared_limit(
+            rate_limit_value(limit_attr),
+            scope=limit_attr,
+            key_func=rate_limit_key,
+            error_message="Rate limit exceeded. Please try again later.",
+        )(fn)
 
     return decorator
 
 
 def install_security_hooks(app):
+    init_rate_limiter(app)
+
     @app.before_request
     def enforce_origin():
         return validate_origin()

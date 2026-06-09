@@ -226,21 +226,61 @@ npm run build
 
 ## Environment Variables
 
-Create a `.env` file:
+Create a `.env` file in `chatbot-simple/`. For production, keep secrets in your host's secret manager and do not commit them.
 
 ```env
 APP_ENV=development
+FLASK_DEBUG=false
 
-SECRET_KEY=
+SECRET_KEY=change-me
+DATABASE_URL=sqlite:///instance/chatbot.sqlite3
 
-DATABASE_URL=
+# Dedicated encryption secret for saved provider API keys.
+# Changing it later requires a key-rotation/re-encryption migration.
+PROVIDER_CREDENTIAL_KEY=change-me-provider-credential-key
 
-FIREBASE_PROJECT_ID=
+SESSION_LIFETIME_MINUTES=1440
+UPLOAD_STORAGE_DIR=instance/uploads
+MAX_UPLOAD_MB=10
+MAX_DOCUMENTS_PER_USER=0
+MAX_UPLOAD_STORAGE_MB_PER_USER=75
+MAX_CONVERSATIONS_PER_USER=100
+MAX_MEMORIES_PER_USER=30
+MAX_PROVIDER_CONNECTIONS_PER_USER=5
 
 VITE_FIREBASE_API_KEY=
-
+VITE_FIREBASE_AUTH_DOMAIN=
 VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+FIREBASE_PROJECT_ID=
+FIREBASE_CREDENTIALS_JSON=
+
+AUTH_ALLOW_PUBLIC_SIGNIN=false
+AUTH_REQUIRE_EMAIL_VERIFIED=true
+AUTH_ALLOWED_EMAIL_DOMAINS=
+AUTH_ALLOWED_EMAILS=
+
+# Local/dev only. Use RATE_LIMIT_BACKEND=redis in production.
+RATE_LIMIT_BACKEND=memory
+REDIS_URL=
+RATE_LIMIT_FAIL_OPEN=false
+RATE_LIMIT_AUTH=10 per minute
+RATE_LIMIT_API=120 per minute
+RATE_LIMIT_CHAT=30 per minute
+RATE_LIMIT_STREAM=30 per minute
+RATE_LIMIT_UPLOAD=10 per hour
+RATE_LIMIT_PROVIDER_TEST=20 per hour
+RATE_LIMIT_MEMORY=60 per minute
+RATE_LIMIT_DOCUMENTS=60 per minute
 ```
+
+Production startup requires `APP_ENV=production`, a non-default `SECRET_KEY`, PostgreSQL `DATABASE_URL`, a dedicated `PROVIDER_CREDENTIAL_KEY`, Firebase web config, Firebase Admin credentials, `RATE_LIMIT_BACKEND=redis`, and `REDIS_URL`. If `AUTH_ALLOW_PUBLIC_SIGNIN=false`, configure `AUTH_ALLOWED_EMAIL_DOMAINS` or `AUTH_ALLOWED_EMAILS` so the app does not accept arbitrary Firebase users.
+
+Redis-backed rate limiting is required in production because in-memory rate limits reset on app restart and do not coordinate across multiple Gunicorn workers or app instances. `RATE_LIMIT_FAIL_OPEN=false` is the default, so startup fails if Redis cannot be reached; set it to `true` only if you intentionally prefer allowing traffic while Redis is unavailable.
+
+Local upload storage uses generated storage keys on disk while preserving original filenames only as display metadata. Free users are limited to 75 MB of local storage, 10 MB per uploaded file, 100 conversations, 30 active memories, and 5 provider connections by default. Nexa warns at 80% storage use and blocks only new uploads at 100%; chat and existing files continue to work. `MAX_DOCUMENTS_PER_USER=0` disables document-count limiting so storage quota is the primary control. Local disk storage is still intended for portfolio/demo deployments, not durable multi-instance production storage.
 
 ---
 
@@ -256,6 +296,17 @@ Start Command:
 gunicorn app:app
 ```
 
+Add a managed Redis instance and set:
+
+```env
+APP_ENV=production
+RATE_LIMIT_BACKEND=redis
+REDIS_URL=redis://...
+RATE_LIMIT_FAIL_OPEN=false
+```
+
+On Railway, add the Redis plugin and use its provided `REDIS_URL`. On a VPS, install Redis or point to a managed Redis provider, bind it privately where possible, require authentication, and use the authenticated URL in `REDIS_URL`.
+
 ### Vercel (Frontend)
 
 ```bash
@@ -270,9 +321,12 @@ Deploy only the frontend and point API requests to the Render backend.
 
 * Fernet encrypted API key storage
 * Firebase token verification
+* Configurable Firebase email/domain allowlist
+* Optional verified-email requirement
 * CSRF protection
 * Origin validation
 * Session-based authentication
+* Redis-backed rate limiting for production
 * SSRF mitigation for custom providers
 
 ---
@@ -281,7 +335,7 @@ Deploy only the frontend and point API requests to the Render backend.
 
 * No Alembic migration support
 * Local upload storage
-* In-memory rate limiting
+* Local/dev memory rate limiting is not production-safe
 * Email/password authentication not completed
 
 ---

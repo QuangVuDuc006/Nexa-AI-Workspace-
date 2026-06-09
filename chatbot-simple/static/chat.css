@@ -2154,6 +2154,12 @@ html[data-theme="light"] .message-content :not(pre) > code {
     white-space: nowrap;
 }
 
+.assistant-message .katex-error,
+.message.ai .katex-error,
+.message-content .katex-error {
+    color: inherit !important;
+}
+
 .message-error {
     padding: 12px;
     border: 1px solid rgba(186, 26, 26, 0.28);
@@ -2397,11 +2403,14 @@ html[data-theme="light"] .message-content :not(pre) > code {
 .attachment-chip button:not(.attachment-image-trigger) {
     width: 24px;
     height: 24px;
-    display: grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
     border-radius: 999px;
     color: var(--muted);
     background: transparent;
+    line-height: 0;
 }
 
 .composer .attachment-chip button:not(.attachment-image-trigger) {
@@ -2411,6 +2420,14 @@ html[data-theme="light"] .message-content :not(pre) > code {
     color: #ffffff;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
+}
+
+.attachment-chip button:not(.attachment-image-trigger) svg,
+.attachment-chip button:not(.attachment-image-trigger) i {
+    width: 16px;
+    height: 16px;
+    display: block;
+    flex: 0 0 auto;
 }
 
 .attachment-chip button:not(.attachment-image-trigger):hover {
@@ -2907,6 +2924,10 @@ body.home-empty .composer {
     transform: translateY(0) scale(1);
 }
 
+.usage-dialog-panel {
+    width: min(740px, 100%);
+}
+
 .compact-dialog {
     width: min(460px, 100%);
 }
@@ -3087,6 +3108,186 @@ body.home-empty .composer {
     width: 20px;
     height: 20px;
     accent-color: var(--primary-hot);
+}
+
+.storage-settings-section {
+    gap: 14px;
+}
+
+.usage-dialog .storage-settings-section {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.storage-plan-badge {
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    background: var(--surface);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.storage-warning {
+    padding: 10px 12px;
+    border: 1px solid rgba(245, 198, 107, 0.38);
+    border-radius: var(--radius-sm);
+    color: var(--warning);
+    background: rgba(245, 198, 107, 0.1);
+    font-size: 0.82rem;
+    font-weight: 720;
+    line-height: 1.45;
+}
+
+.storage-meter {
+    display: grid;
+    gap: 8px;
+}
+
+.storage-meter-header,
+.document-controls,
+.document-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.storage-usage-label {
+    color: var(--text);
+    font-size: 0.84rem;
+}
+
+.storage-percent-label {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.storage-progress {
+    height: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+}
+
+.storage-progress-bar {
+    display: block;
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--success), var(--warning));
+    transition: width 220ms var(--ease);
+}
+
+.storage-progress-bar.full {
+    background: var(--danger);
+}
+
+.storage-breakdown {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.storage-breakdown-item {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+}
+
+.storage-breakdown-item span {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+}
+
+.storage-breakdown-item strong {
+    color: var(--text);
+    font-size: 0.8rem;
+}
+
+.document-controls {
+    align-items: end;
+}
+
+.document-search-field {
+    flex: 1 1 auto;
+}
+
+.document-sort-field {
+    width: 150px;
+    flex: 0 0 auto;
+}
+
+.document-list {
+    display: grid;
+    gap: 7px;
+    max-height: min(360px, 42dvh);
+    overflow: auto;
+}
+
+.document-empty {
+    padding: 12px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: center;
+}
+
+.document-item {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+}
+
+.document-copy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.document-copy strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.document-copy span {
+    color: var(--muted);
+    font-size: 0.7rem;
+}
+
+.document-delete-button {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: var(--radius-xs);
+    color: var(--muted);
+    background: transparent;
+}
+
+.document-delete-button:hover {
+    color: var(--danger);
+    background: var(--danger-soft);
 }
 
 .form-field {

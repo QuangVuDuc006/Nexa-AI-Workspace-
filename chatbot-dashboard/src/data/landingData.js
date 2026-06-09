@@ -13,12 +13,13 @@ import {
 
 export const navItems = [
   { label: "Home", href: "#home" },
-  { label: "Features", href: "#services" },
-  { label: "Use Cases", href: "#case-studies" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Workspace", href: "#services" },
+  { label: "Models", href: "#models" },
+  { label: "Memory", href: "#memory" },
+  { label: "Docs", href: "#documents" },
 ];
 
-export const trustedLogos = ["OpenAI", "Anthropic", "Google AI", "OpenRouter"];
+export const trustedLogos = ["Gemini", "Claude", "OpenAI", "OpenRouter"];
 
 export const services = [
   {
@@ -202,33 +203,38 @@ export const faqs = [
   {
     question: "What is Nexa AI?",
     answer:
-      "Nexa AI is a multi-provider chatbot client. Connect supported AI APIs, choose a model, and chat from one clean interface.",
+      "Nexa AI is a private multi-provider AI workspace for models, memory, documents, and personal workflows.",
   },
   {
-    question: "Which providers can I connect?",
+    question: "Which providers are supported?",
     answer:
-      "Nexa AI supports providers including OpenAI, Gemini, Anthropic Claude, OpenRouter, DeepSeek, Groq, Kimi, Mistral, Together, Ollama, LM Studio, and OpenAI-compatible APIs.",
+      "Nexa supports Gemini, Claude, OpenAI, DeepSeek, Groq, OpenRouter, Ollama, and OpenAI-compatible endpoints.",
   },
   {
-    question: "Will Nexa AI detect every available model?",
+    question: "How does memory work?",
     answer:
-      "Nexa AI detects models when the provider supports it. If detection is unavailable or returns no models, you can enter the model ID manually.",
+      "Nexa combines recent conversation context with long-term memory so responses can reflect your preferences and important details.",
   },
   {
-    question: "How are my API keys handled?",
+    question: "Can I chat with documents?",
     answer:
-      "Saved API keys are encrypted server-side, masked in provider settings, and never returned to the browser after saving.",
+      "Yes. Upload PDF, DOCX, TXT, or Markdown files, then retrieve grounded answers with citations.",
   },
   {
-    question: "Can I switch models without starting a new chat?",
+    question: "Are API keys secure?",
     answer:
-      "Yes. Use the active model control in the top bar to switch saved providers and models while staying in the same chatbot interface.",
+      "Saved API keys are encrypted server-side, masked in settings, and not returned to the browser after saving.",
+  },
+  {
+    question: "Can I self-host Nexa AI?",
+    answer:
+      "Yes. Nexa is designed for local deployment and self-hosted environments where you control the infrastructure.",
   },
 ];
 
 export const footerLinks = {
-  Links: ["Features", "Workflow", "Use cases", "Benefits", "Pricing"],
-  Pages: ["Home", "Chat", "FAQ", "Contact"],
+  Links: ["Workspace", "Models", "Memory", "Documents", "Privacy"],
+  Pages: ["Home", "Chat", "FAQ", "Launch"],
   Socials: ["LinkedIn", "Twitter", "GitHub", "Docs"],
 };
 

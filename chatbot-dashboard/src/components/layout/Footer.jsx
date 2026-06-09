@@ -7,11 +7,12 @@ const footerHref = {
   Chat: "/chat",
   FAQ: "#faq",
   Contact: "#contact",
-  Features: "#services",
-  Workflow: "#process",
-  "Use cases": "#case-studies",
-  Benefits: "#benefits",
-  Pricing: "#pricing",
+  Workspace: "#services",
+  Models: "#models",
+  Memory: "#memory",
+  Documents: "#documents",
+  Privacy: "#privacy",
+  Launch: "#contact",
 };
 
 export function Footer() {
@@ -22,7 +23,7 @@ export function Footer() {
           <div className="max-w-md">
             <Logo />
             <p className="mt-5 text-sm leading-6 text-mist-200 sm:text-base sm:leading-7">
-              Nexa AI keeps provider setup, model switching, and organized chat history in one focused workspace.
+              Nexa AI brings models, memory, documents, and private provider access into one focused workspace.
             </p>
             <form className="mt-6 grid max-w-md grid-cols-1 overflow-hidden rounded-[8px] border border-white/10 bg-black/35 min-[420px]:grid-cols-[1fr_auto]">
               <input

@@ -4,7 +4,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text, create_engine
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, scoped_session, sessionmaker
 
 
@@ -33,6 +33,9 @@ class User(Base):
     photo_url: Mapped[str] = mapped_column(Text, default="")
     auth_provider: Mapped[str] = mapped_column(String(32), default="firebase")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    storage_used_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    storage_limit_bytes: Mapped[int] = mapped_column(BigInteger, default=75 * 1024 * 1024, nullable=False)
+    plan: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
@@ -116,6 +119,7 @@ class Attachment(Base):
     size: Mapped[int] = mapped_column(Integer, default=0)
     content_text: Mapped[str] = mapped_column(Text, default="")
     storage_path: Mapped[str] = mapped_column(Text, default="")
+    document_id: Mapped[str] = mapped_column(String(80), default="", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     message: Mapped[Message] = relationship(back_populates="attachments")
@@ -216,7 +220,9 @@ class Document(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     filename: Mapped[str] = mapped_column(String(180), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(120), default="application/octet-stream", nullable=False)
+    size: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     storage_path: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     user: Mapped[User] = relationship(back_populates="documents")
@@ -267,6 +273,25 @@ def ensure_sqlite_conversation_summary_columns(engine):
             connection.exec_driver_sql("ALTER TABLE conversations ADD COLUMN summary_updated_at DATETIME")
 
 
+def ensure_sqlite_user_quota_columns(engine):
+    with engine.begin() as connection:
+        columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(users)").all()
+        }
+
+        if "storage_used_bytes" not in columns:
+            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN storage_used_bytes BIGINT NOT NULL DEFAULT 0")
+
+        if "storage_limit_bytes" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN storage_limit_bytes BIGINT NOT NULL DEFAULT 78643200"
+            )
+
+        if "plan" not in columns:
+            connection.exec_driver_sql("ALTER TABLE users ADD COLUMN plan VARCHAR(50) NOT NULL DEFAULT 'free'")
+
+
 def ensure_sqlite_rag_tables(engine):
     Base.metadata.tables["documents"].create(bind=engine, checkfirst=True)
     Base.metadata.tables["document_chunks"].create(bind=engine, checkfirst=True)
@@ -277,6 +302,17 @@ def ensure_sqlite_rag_tables(engine):
         }
         if "storage_path" not in document_columns:
             connection.exec_driver_sql("ALTER TABLE documents ADD COLUMN storage_path TEXT NOT NULL DEFAULT ''")
+        if "size" not in document_columns:
+            connection.exec_driver_sql("ALTER TABLE documents ADD COLUMN size INTEGER NOT NULL DEFAULT 0")
+        if "last_used_at" not in document_columns:
+            connection.exec_driver_sql("ALTER TABLE documents ADD COLUMN last_used_at DATETIME")
+
+        attachment_columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(attachments)").all()
+        }
+        if "document_id" not in attachment_columns:
+            connection.exec_driver_sql("ALTER TABLE attachments ADD COLUMN document_id VARCHAR(80) NOT NULL DEFAULT ''")
 
         columns = {
             row[1]
@@ -307,11 +343,23 @@ def ensure_postgres_conversation_summary_columns(engine):
         )
 
 
+def ensure_postgres_user_quota_columns(engine):
+    with engine.begin() as connection:
+        connection.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_used_bytes BIGINT NOT NULL DEFAULT 0")
+        connection.exec_driver_sql(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_limit_bytes BIGINT NOT NULL DEFAULT 78643200"
+        )
+        connection.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(50) NOT NULL DEFAULT 'free'")
+
+
 def ensure_postgres_rag_tables(engine):
     Base.metadata.tables["documents"].create(bind=engine, checkfirst=True)
     Base.metadata.tables["document_chunks"].create(bind=engine, checkfirst=True)
     with engine.begin() as connection:
         connection.exec_driver_sql("ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_path TEXT NOT NULL DEFAULT ''")
+        connection.exec_driver_sql("ALTER TABLE documents ADD COLUMN IF NOT EXISTS size INTEGER NOT NULL DEFAULT 0")
+        connection.exec_driver_sql("ALTER TABLE documents ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMP WITH TIME ZONE")
+        connection.exec_driver_sql("ALTER TABLE attachments ADD COLUMN IF NOT EXISTS document_id VARCHAR(80) NOT NULL DEFAULT ''")
         connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS section_title VARCHAR(240)")
         connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS start_char INTEGER")
         connection.exec_driver_sql("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS end_char INTEGER")
@@ -327,9 +375,11 @@ def init_database(app, database_url):
 
     if database_url.startswith("sqlite"):
         ensure_sqlite_conversation_summary_columns(engine)
+        ensure_sqlite_user_quota_columns(engine)
         ensure_sqlite_rag_tables(engine)
     elif database_url.startswith("postgresql"):
         ensure_postgres_conversation_summary_columns(engine)
+        ensure_postgres_user_quota_columns(engine)
         ensure_postgres_rag_tables(engine)
 
     @app.teardown_appcontext

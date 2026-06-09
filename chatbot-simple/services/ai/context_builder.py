@@ -42,6 +42,8 @@ RAG_ANSWER_INSTRUCTIONS = (
     "- If retrieved context is insufficient, say the uploaded documents do not contain enough information.\n"
     "- Do not invent content not supported by the file. You may add general explanation only when it is clearly "
     "framed as background and does not contradict the file.\n"
+    "- If retrieved context contains multiple uploaded files, answer with a separate clearly named section for each file.\n"
+    "- If Retrieved document context includes document diagnostics, explicitly name the affected file and the extraction/chunking issue.\n"
     "- Do not only list file snippets or answer with generic filler.\n"
     "- If the user asks for important content from a file, provide a structured, learning-oriented explanation.\n"
     "- Unless the user asks for short output, each major point should have at least 2-4 sentences."
@@ -161,6 +163,9 @@ def render_attachment_lines(attachments, file_budget):
     remaining = file_budget
 
     for attachment in attachments or []:
+        if getattr(attachment, "document_id", ""):
+            continue
+
         if attachment.kind == "image":
             lines.append(f"[Image attachment: {attachment.name} ({attachment.mime_type})]")
             continue
@@ -443,6 +448,31 @@ def build_conversation_context(
                 answer_mode,
             )
             context = compose_context(summary, "", fitted_user_message, personalization_text, memories, rag_context_text, answer_mode)
+
+        if len(context) > max_context_length:
+            if rag_context_text:
+                fitted_rag_context_text = longest_fitting_text(
+                    rag_context_text,
+                    lambda value: compose_context(
+                        "",
+                        "",
+                        str(user_message or ""),
+                        personalization_text,
+                        memories,
+                        value,
+                        answer_mode,
+                    ),
+                    max_context_length,
+                )
+                context = compose_context(
+                    "",
+                    "",
+                    str(user_message or ""),
+                    personalization_text,
+                    memories,
+                    fitted_rag_context_text,
+                    answer_mode,
+                )
 
         if len(context) > max_context_length:
             context = compact_current_message_context(str(user_message or ""), max_context_length)

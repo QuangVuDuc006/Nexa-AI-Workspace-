@@ -24,7 +24,7 @@ def create_memory_blueprint(deps):
 
     @bp.get("/api/personalization")
     @login_required
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("memory")
     def personalization_get():
         db = db_session()
         user = db_user(db)
@@ -35,7 +35,7 @@ def create_memory_blueprint(deps):
     @bp.put("/api/personalization")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("memory")
     def personalization_put():
         data = request.get_json(silent=True) or {}
         text = data.get("personalizationText", data.get("personalization_text", ""))
@@ -47,7 +47,7 @@ def create_memory_blueprint(deps):
 
     @bp.get("/api/memory")
     @login_required
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("memory")
     def memory_get():
         db = db_session()
         user = db_user(db)
@@ -58,7 +58,7 @@ def create_memory_blueprint(deps):
     @bp.post("/api/memory")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("memory")
     def memory_post():
         data = request.get_json(silent=True) or {}
         value = data.get("value", data.get("memory", data.get("text", "")))
@@ -74,6 +74,7 @@ def create_memory_blueprint(deps):
                 1.0,
                 1,
                 db=db,
+                max_active=deps.settings.max_memories_per_user,
             )
         except MemoryValidationError as error:
             db.rollback()
@@ -85,14 +86,14 @@ def create_memory_blueprint(deps):
     @bp.patch("/api/memory/<memory_id>")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("memory")
     def memory_patch(memory_id):
         data = request.get_json(silent=True) or {}
         db = db_session()
         user = db_user(db)
 
         try:
-            memory = update_memory(user.id, memory_id, data, db=db)
+            memory = update_memory(user.id, memory_id, data, db=db, max_active=deps.settings.max_memories_per_user)
         except LookupError:
             db.rollback()
             return error_response(404, "not_found", "Memory was not found.")
@@ -106,7 +107,7 @@ def create_memory_blueprint(deps):
     @bp.delete("/api/memory/<memory_id>")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("memory")
     def memory_delete(memory_id):
         db = db_session()
         user = db_user(db)

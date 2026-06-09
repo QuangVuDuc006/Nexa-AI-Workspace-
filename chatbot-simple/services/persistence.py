@@ -8,7 +8,8 @@ from pathlib import Path
 
 from sqlalchemy import and_, select
 
-from services.database import AuditLog, Attachment, Conversation, Message, User, new_id, utc_now
+from services.database import AuditLog, Attachment, Conversation, Document, Message, User, new_id, utc_now
+from services.storage_safety import delete_local_file, ensure_upload_storage_quota
 from services.uploads import IMAGE_MIME_TYPES, sanitize_filename
 
 
@@ -69,6 +70,10 @@ def serialize_attachment(attachment):
         "mime_type": attachment.mime_type,
         "size": attachment.size,
     }
+
+    if getattr(attachment, "document_id", ""):
+        payload["documentId"] = attachment.document_id
+        payload["document_id"] = attachment.document_id
 
     if attachment.kind == "image":
         payload["url"] = f"/api/attachments/{attachment.id}/content"
@@ -239,7 +244,7 @@ def write_image_attachment(settings, user_id, message_id, attachment_id, name, d
 
     directory = settings.upload_storage_dir / safe_user_path(user_id) / message_id
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / f"{attachment_id}-{sanitize_filename(Path(name).stem)[:80]}{extension}"
+    path = directory / f"{new_id('file')}{extension}"
     path.write_bytes(raw)
     return mime_type, len(raw), str(path)
 
@@ -311,6 +316,12 @@ def hydrate_attachment_for_provider(db, user_id, raw_attachment):
     if not content.strip() and not document_id:
         return None
 
+    if document_id:
+        document = db.scalar(select(Document).where(and_(Document.id == document_id, Document.user_id == user_id)))
+
+        if not document:
+            raise ValueError("Document attachment was not found.")
+
     return {
         "id": existing_id,
         "kind": "text",
@@ -370,13 +381,15 @@ def persist_attachments(db, message, attachments, settings, user_id):
 
         if raw_attachment.get("kind") == "image":
             data_url = raw_attachment.get("data_url") or raw_attachment.get("dataUrl")
+            parsed_mime, raw = parse_data_url(data_url)
+            ensure_upload_storage_quota(db, user_id, settings, len(raw))
             mime_type, stored_size, storage_path = write_image_attachment(
                 settings,
                 user_id,
                 message.id,
                 attachment_id,
                 name,
-                data_url,
+                f"data:{parsed_mime};base64,{base64.b64encode(raw).decode('ascii')}",
             )
             attachment = Attachment(
                 id=attachment_id,
@@ -398,6 +411,7 @@ def persist_attachments(db, message, attachments, settings, user_id):
                 mime_type=mime_type or "text/plain",
                 size=size,
                 content_text=content,
+                document_id=str(raw_attachment.get("document_id") or raw_attachment.get("documentId") or ""),
                 created_at=utc_now(),
             )
 
@@ -473,29 +487,77 @@ def update_feedback(db, user_id, message_id, feedback):
     return message
 
 
-def delete_message_for_user(db, user_id, message_id):
+def delete_attachment_local_files(db, user_id, attachments, settings):
+    seen_documents = set()
+
+    for attachment in list(attachments or []):
+        if attachment.storage_path:
+            delete_local_file(attachment.storage_path, settings)
+
+        document_id = str(getattr(attachment, "document_id", "") or "")
+        if not document_id or document_id in seen_documents:
+            continue
+
+        seen_documents.add(document_id)
+        document = db.scalar(select(Document).where(and_(Document.id == document_id, Document.user_id == user_id)))
+
+        if document:
+            delete_local_file(document.storage_path, settings)
+            db.delete(document)
+
+
+def delete_unreferenced_documents_for_user(db, user_id, settings):
+    documents = db.scalars(
+        select(Document)
+        .outerjoin(Attachment, Attachment.document_id == Document.id)
+        .where(and_(Document.user_id == user_id, Attachment.id.is_(None)))
+    ).all()
+
+    for document in documents:
+        delete_local_file(document.storage_path, settings)
+        db.delete(document)
+
+    return len(documents)
+
+
+def delete_message_for_user(db, user_id, message_id, settings=None):
     message = get_message_for_user(db, user_id, message_id)
 
     if not message:
         raise ValueError("Message was not found.")
+
+    if settings:
+        delete_attachment_local_files(db, user_id, message.attachments, settings)
 
     conversation = message.conversation
     db.delete(message)
     conversation.updated_at = utc_now()
 
 
-def delete_conversation_for_user(db, user_id, conversation_id):
+def delete_conversation_for_user(db, user_id, conversation_id, settings=None):
     conversation = get_conversation_for_user(db, user_id, conversation_id)
 
     if not conversation:
         raise ValueError("Conversation was not found.")
 
+    if settings:
+        for message in conversation.messages:
+            delete_attachment_local_files(db, user_id, message.attachments, settings)
+
     db.delete(conversation)
 
 
-def clear_conversations_for_user(db, user_id):
+def clear_conversations_for_user(db, user_id, settings=None):
     for conversation in db.scalars(select(Conversation).where(Conversation.user_id == user_id)):
+        if settings:
+            for message in conversation.messages:
+                delete_attachment_local_files(db, user_id, message.attachments, settings)
+
         db.delete(conversation)
+
+    if settings:
+        db.flush()
+        delete_unreferenced_documents_for_user(db, user_id, settings)
 
 
 def audit_log(db, user_id, action, resource_type="", resource_id="", ip_address="", metadata=None):

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from flask import Blueprint, current_app, jsonify, request, send_file
 
 from services.auth import login_required
@@ -18,6 +16,8 @@ from services.rag.document_service import (
 from services.rag.embedding_service import EmbeddingError, EmbeddingService
 from services.rag.vector_store import search_relevant_chunks
 from services.security import client_ip, csrf_protect, rate_limit
+from services.storage_safety import StorageQuotaError, ensure_document_quota, safe_local_path
+from services.storage_safety import storage_quota_payload, sync_user_storage_usage
 from services.uploads import UploadError, process_uploaded_document
 
 from .common import db_user
@@ -63,7 +63,7 @@ def create_document_blueprint(deps):
     @bp.post("/api/documents/upload")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("upload")
     def upload_document():
         if not deps.settings.rag_enabled:
             return error_response(503, "rag_disabled", "Document RAG is disabled.")
@@ -76,6 +76,7 @@ def create_document_blueprint(deps):
 
         try:
             uploaded = process_uploaded_document(request.files["file"], deps.settings)
+            ensure_document_quota(db, user.id, deps.settings, uploaded["size"])
             document, chunks = create_document_with_chunks(
                 db,
                 user.id,
@@ -85,16 +86,22 @@ def create_document_blueprint(deps):
                 deps.settings,
                 source_bytes=uploaded.get("raw"),
             )
+            sync_user_storage_usage(db, user, deps.settings)
+            storage = storage_quota_payload(db, user, deps.settings)
             db.commit()
             return jsonify({
                 "document": serialize_document(document, len(chunks)),
                 "chunkCount": len(chunks),
                 "chunk_count": len(chunks),
+                "storage": storage,
             })
         except UploadError as error:
             db.rollback()
             current_app.logger.warning("Document upload failed", extra={"code": error.code, "ip": client_ip()})
             return error_response(error.status_code, error.code, str(error))
+        except StorageQuotaError as error:
+            db.rollback()
+            return error_response(403, "upload_quota_exceeded", str(error))
         except EmbeddingError as error:
             db.rollback()
             current_app.logger.warning("Document embedding failed", extra={"ip": client_ip(), "error": str(error)})
@@ -105,15 +112,30 @@ def create_document_blueprint(deps):
 
     @bp.get("/api/documents")
     @login_required
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("documents")
     def list_documents():
         db = db_session()
         user = db_user(db)
-        return jsonify({"documents": list_documents_by_user(db, user.id)})
+        storage = storage_quota_payload(db, user, deps.settings)
+        db.commit()
+        return jsonify({
+            "documents": list_documents_by_user(db, user.id, deps.settings),
+            "storage": storage,
+        })
+
+    @bp.get("/api/storage/quota")
+    @login_required
+    @rate_limit("documents")
+    def storage_quota():
+        db = db_session()
+        user = db_user(db)
+        payload = storage_quota_payload(db, user, deps.settings)
+        db.commit()
+        return jsonify({"storage": payload})
 
     @bp.get("/api/documents/<document_id>/content")
     @login_required
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("documents")
     def document_content(document_id):
         db = db_session()
         user = db_user(db)
@@ -122,9 +144,9 @@ def create_document_blueprint(deps):
         if not document or not document.storage_path:
             return error_response(404, "not_found", "Document source file was not found.")
 
-        path = Path(document.storage_path)
+        path = safe_local_path(document.storage_path, deps.settings)
 
-        if not path.exists():
+        if not path or not path.exists():
             return error_response(404, "not_found", "Document source file is unavailable.")
 
         return send_file(
@@ -138,22 +160,24 @@ def create_document_blueprint(deps):
     @bp.delete("/api/documents/<document_id>")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("documents")
     def delete_user_document(document_id):
         db = db_session()
         user = db_user(db)
 
-        if not delete_document(db, user.id, document_id):
+        if not delete_document(db, user.id, document_id, deps.settings):
             db.rollback()
             return error_response(404, "not_found", "Document was not found.")
 
+        sync_user_storage_usage(db, user, deps.settings)
+        storage = storage_quota_payload(db, user, deps.settings)
         db.commit()
-        return jsonify({"ok": True})
+        return jsonify({"ok": True, "storage": storage})
 
     @bp.post("/api/documents/search")
     @login_required
     @csrf_protect
-    @rate_limit("api_rate_limit_per_window")
+    @rate_limit("documents")
     def search_documents():
         if not deps.settings.rag_enabled:
             return jsonify({"chunks": [], "results": []})
