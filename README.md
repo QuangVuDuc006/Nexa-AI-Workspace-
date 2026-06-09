@@ -1,4 +1,8 @@
 <p align="center">
+  Language: <a href="README.md">English</a> | <a href="README.vi.md">Tiếng Việt</a>
+</p>
+
+<p align="center">
   <img src="chatbot-dashboard/public/assets/Landing.png" alt="Nexa AI landing preview" width="760">
 </p>
 
